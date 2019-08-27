@@ -1,0 +1,46 @@
+alpha = _{ 'a'..'z' | 'A'..'Z' }
+digit = _{ '0'..'9' }
+whitespace = { " " }
+newline = _{ NEWLINE }
+whitespaces = { (whitespace | newline)* }
+WHITESPACE = _{ (" " | NEWLINE) }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+lax_ident = @{ (alpha | digit)+ }
+ident = @{ alpha ~ (alpha | digit | "_" | "-")* }
+ns_ident = @{ ident ~ ("." ~ ident)* }
+lax_ns_ident = @{ ident ~ ("." ~ lax_ident)* }
+
+union_ty = {"union" ~ "{" ~ ty ~ ("," ~ ty)* ~ "}"}
+simple_ty = @{ ns_ident ~ ("<" ~ ty ~ ("," ~ WHITESPACE+ ~ ty)* ~ ">")? }
+ty = { (union_ty | simple_ty ) }
+namespace_name = { ident ~ ("." ~ (alpha | digit)*)* }
+path = { ((".." | ".") ~ "/")* ~ (lax_ident ~ "/")* ~ lax_ident }
+
+enum_case = ${ident ~ ","? }
+enum_ty = { "enum" ~ ident ~ "{" ~ (enum_case | comment)* ~ "}"}
+
+variant_case = {"case" ~ ident ~ ":" ~ ty ~ ";" }
+variant_param = ${ ty ~ WHITESPACE ~ ident }
+variant_ty = { "variant" ~ ident ~ "switch" ~ "(" ~ variant_param  ~ ")" ~ "{" ~ variant_case* ~ "}"}
+
+fixed_ty = { "fixed" ~ ty ~ "(" ~ digit* ~ ")" ~ ";" }
+
+record = { "record " ~ ty ~ "{" ~ (record_prop | comment)* ~ "}"}
+record_prop = { (lint | generic_annotation)* ~ ty ~ ident ~ ";" }
+
+namespace_annotation = ${ "@namespace" ~ "(\"" ~ lax_ns_ident ~ "\")" }
+generic_annotation = { "@" ~ ident ~ "(\"" ~ ident ~ "\")" }
+lint = { "@lint(\"" ~ ident ~ "\")" }
+typedef = { "@typedef(\"" ~ ty ~ "\")" ~ lint? ~ record }
+
+namespace = { "@namespace(\"" ~ namespace_name ~ "\")" ~  "protocol" ~ ident ~ "{" ~ newline* ~ "}" }
+
+import = { "import" ~ ty ~ "\"" ~ path ~ "\"" ~ "as" ~ ty ~ ";"}
+
+comment = @{ "//" ~ (!"\n" ~ ANY)* ~ newline }
+protocol_body = { (comment | import | typedef | generic_annotation | record | enum_ty | variant_ty | fixed_ty) }
+
+protocol = {"protocol" ~ ident ~ "{" ~ protocol_body* ~ "}" }
+
+avdl_protocol = { namespace_annotation? ~ protocol }
