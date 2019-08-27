@@ -702,6 +702,8 @@ fn main() {
   let parsed = AVDLParser::parse(avdl::Rule::avdl_protocol, input);
   if let Err(e) = parsed {
     println!("{}", e);
+  } else {
+    println!("{:#?}", parsed.unwrap());
   }
 
   // let input2 = r#"union { foo }"#;
