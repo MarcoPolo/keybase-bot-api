@@ -1,0 +1,314 @@
+
+@namespace("keybase.1")
+protocol config {
+
+  import idl "common.avdl";
+  import idl "notify_ctl.avdl";
+
+  record CurrentStatus {
+    boolean configured;
+    boolean registered;
+    boolean loggedIn;
+    boolean sessionIsValid;
+    union { null, User } user;
+  }
+
+  CurrentStatus getCurrentStatus(int sessionID);
+
+  record SessionStatus {
+    @lint("ignore")
+    string SessionFor;
+    @lint("ignore")
+    boolean Loaded;
+    @lint("ignore")
+    boolean Cleared;
+    @lint("ignore")
+    boolean SaltOnly;
+    @lint("ignore")
+    boolean Expired;
+  }
+
+  record ClientDetails {
+    int pid;
+    ClientType clientType;
+    array<string> argv;
+    string desc;
+    string version;
+  }
+
+  record ClientStatus {
+    ClientDetails details;
+    int connectionID;
+    NotificationChannels notificationChannels;
+  }
+
+  record PlatformInfo {
+    string os;
+    string osVersion;
+    string arch;
+    string goVersion;
+  }
+
+  record LoadDeviceErr {
+    string where;
+    string desc;
+  }
+
+  record DirSizeInfo {
+    int numFiles;
+    string name;
+    string humanSize;
+  }
+
+  record ExtendedStatus {
+    boolean standalone;
+    boolean passphraseStreamCached;
+    boolean tsecCached;
+    boolean deviceSigKeyCached;
+    boolean deviceEncKeyCached;
+    boolean paperSigKeyCached;
+    boolean paperEncKeyCached;
+    boolean storedSecret;
+    boolean secretPromptSkip;
+    boolean rememberPassphrase;
+    union { null, Device } device;
+    union { null, LoadDeviceErr } deviceErr; /* if err getting device, this will describe it */
+    string logDir;
+    union { null, SessionStatus } session;
+    string defaultUsername;
+    array<string> provisionedUsernames;
+    array<ConfiguredAccount> configuredAccounts;
+    @lint("ignore")
+    array<ClientStatus> Clients;
+    array<string> deviceEkNames;
+    PlatformInfo platformInfo;
+    DeviceID defaultDeviceID;               /* this contains the device ID for defaultUsername
+                                               in the config file. */
+    array<string> localDbStats;
+    array<string> localChatDbStats;
+    array<string> localBlockCacheDbStats;
+    array<string> localSyncCacheDbStats;
+    array<DirSizeInfo> cacheDirSizeInfo;
+    map<int> uiRouterMapping;
+  }
+
+  record KbClientStatus {
+    string version;
+  }
+
+  record KbServiceStatus {
+    string version;
+    boolean running;
+    string pid;
+    string log;
+    string ekLog;
+  }
+
+  record KBFSStatus {
+    string version;
+    string installedVersion;
+    boolean running;
+    string pid;
+    string log;
+    string mount;
+  }
+
+  record DesktopStatus {
+    string version;
+    boolean running;
+    string log;
+  }
+
+  record UpdaterStatus {
+    string log;
+  }
+
+  record StartStatus {
+    string log;
+  }
+
+  record GitStatus {
+    string log;
+  }
+
+  record FullStatus {
+    string username;
+    string configPath;
+
+    CurrentStatus curStatus;
+    ExtendedStatus extStatus;
+
+    KbClientStatus client;
+    KbServiceStatus service;
+    KBFSStatus kbfs;
+    DesktopStatus desktop;
+    UpdaterStatus updater;
+    StartStatus start;
+    GitStatus git;
+  }
+
+  array<ClientStatus> getClientStatus(int sessionID);
+
+  // FullStatus encapsulates everything required for the status and log send
+  // commands
+  union { null, FullStatus } getFullStatus(int sessionID);
+
+  @typedef("string")  record LogSendID {}
+  LogSendID logSend(int sessionID, string statusJSON, string feedback,
+    boolean sendLogs, boolean sendMaxBytes);
+
+  record AllProvisionedUsernames {
+    string defaultUsername;
+    array<string> provisionedUsernames;
+    boolean hasProvisionedUser;
+  }
+
+  AllProvisionedUsernames getAllProvisionedUsernames(int sessionID);
+
+  enum ForkType {
+    NONE_0,
+    AUTO_1,
+    WATCHDOG_2,
+    LAUNCHD_3,
+    SYSTEMD_4
+  }
+
+  record Config {
+    string serverURI;
+    string socketFile;
+    string label;
+    string runMode;
+    boolean gpgExists;
+    string gpgPath;
+    string version;
+    string path;
+    string binaryRealpath;
+    string configPath;
+    string versionShort;
+    string versionFull;
+    boolean isAutoForked;
+    ForkType forkType;
+  }
+
+  // A poor man's union, since we only currently support union { null, T }
+  record ConfigValue {
+    boolean isNull;
+    union { null, boolean } b;
+    union { null, int } i;
+    union { null, string } s;
+    union { null, string } o;
+  }
+
+  Config getConfig(int sessionID);
+
+  /**
+    Change user config.
+    For example, to update primary picture source:
+      key=picture.source, value=twitter (or github)
+    */
+  void setUserConfig(int sessionID, string username, string key, string value);
+
+  // setPath tells the service the client's PATH so that it can augment its own PATH if necessary.
+  void setPath(int sessionID, string path);
+
+  void helloIAm(ClientDetails details);
+
+  void setValue(string path, ConfigValue value);
+  void clearValue(string path);
+  ConfigValue getValue(string path);
+
+  void guiSetValue(string path, ConfigValue value);
+  void guiClearValue(string path);
+  ConfigValue guiGetValue(string path);
+
+  record OutOfDateInfo {
+    string upgradeTo;
+    string upgradeURI;
+    string customMessage;
+    long criticalClockSkew;
+  }
+
+  /**
+    Check whether the API server has told us we're out of date.
+    */
+  OutOfDateInfo checkAPIServerOutOfDateWarning();
+
+  enum UpdateInfoStatus {
+    UP_TO_DATE_0,
+    NEED_UPDATE_1,
+    CRITICALLY_OUT_OF_DATE_2
+  }
+  record UpdateInfo {
+    UpdateInfoStatus status;
+    string message;
+  }
+  UpdateInfo getUpdateInfo();
+
+  // Same as running `keybase update check` in CLI.
+  void startUpdateIfNeeded();
+
+
+  /**
+    Wait for client type to connect to service.
+    */
+  boolean waitForClient(ClientType clientType, DurationSec timeout);
+
+  record BootstrapStatus {
+    boolean registered;     // true if signed up at some point
+    boolean loggedIn;     // true if currently logged in
+    UID uid;        // current logged in user's UID
+    string username;      // current logged in user's username
+    DeviceID deviceID;      // current logged in user's device ID
+    string deviceName;      // current logged in user's device name
+    FullName fullname;        // current user's fullname
+    UserReacjis userReacjis;    // reacjis preferences for current logged in user
+    union { null, HttpSrvInfo } httpSrvInfo; // info about the service http server
+  }
+
+  BootstrapStatus getBootstrapStatus(int sessionID);
+  void requestFollowerInfo(UID uid);
+
+  boolean getRememberPassphrase(int sessionID);
+  void setRememberPassphrase(int sessionID, boolean remember);
+
+  enum UpdateInfoStatus2 {
+    OK_0,
+    SUGGESTED_1,
+    CRITICAL_2
+  }
+
+  record UpdateDetails {
+    string message;
+  }
+
+  variant UpdateInfo2 switch (UpdateInfoStatus2 status) {
+    case OK: void;
+    case SUGGESTED: UpdateDetails;
+    case CRITICAL: UpdateDetails;
+  }
+
+  /**
+   getUpdateInfo2 is to drive the redbar on mobile and desktop apps. The redbar tells you if
+   you are critically out of date.
+   */
+  UpdateInfo2 getUpdateInfo2(union { null, string } platform, union { null, string } version);
+
+  enum ProxyType {
+    No_Proxy_0,
+    HTTP_Connect_1,
+    Socks_2
+  }
+
+  record ProxyData {
+    string addressWithPort;
+    ProxyType proxyType;
+    boolean certPinning;
+  }
+
+  void setProxyData(ProxyData proxyData);
+
+  ProxyData getProxyData();
+
+  // Runtime Stats
+  void toggleRuntimeStats();
+}

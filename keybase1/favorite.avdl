@@ -1,0 +1,106 @@
+@namespace("keybase.1")
+
+protocol favorite {
+  import idl "common.avdl";
+
+  enum FolderType {
+    UNKNOWN_0,
+    PRIVATE_1,
+    PUBLIC_2,
+    TEAM_3
+  }
+
+  enum FolderConflictType {
+    NONE_0,
+    IN_CONFLICT_1,
+    IN_CONFLICT_AND_STUCK_2,
+    CLEARED_CONFLICT_3
+}
+
+  enum ConflictStateType {
+    NormalView_1,
+    ManualResolvingLocalView_2
+  }
+
+  record FolderNormalView {
+    // Set to true if we're trying to automatically resolve conflict in this
+    // folder. Whether or not there's a local view version of this TLF doesn't
+    // affect this.
+    boolean resolvingConflict;
+    // Set to true if we tried to automatically resolve conflict in this folder
+    // and failed. Whether or not there's a local view version of this TLF
+    // doesn't affect this.
+    boolean stuckInConflict;
+    array<Path> localViews;
+  }
+
+  record FolderConflictManualResolvingLocalView {
+    Path normalView;
+  }
+
+  variant ConflictState switch (ConflictStateType conflictStateType) {
+    case NormalView: FolderNormalView;
+    case ManualResolvingLocalView: FolderConflictManualResolvingLocalView;
+  }
+
+  /**
+    Folder represents a favorite top-level folder in kbfs.
+    This type is likely to change significantly as all the various parts are
+    connected and tested.
+    */
+  record Folder {
+    string name;              // patrick,max or chris,maxtaco@twitter#strib
+    boolean private;          // (DEPRECATED) in /keybase/private or /keybase/public?
+    boolean created;          // this folder was just created by this user
+    FolderType folderType;    // what type of folder is this?
+
+    // supply the team ID of the underlying team if known. optional so that
+    // the frontend doesn't need to be changed to support it.
+    @jsonkey("team_id") @mpackkey("team_id")
+    union { null, TeamID } teamID;
+
+    // TODO: decide if we need to include an ID here
+
+    @jsonkey("reset_members") @mpackkey("reset_members")
+    array<User> resetMembers;
+
+    union { null, Time } mtime;
+
+    union { null, ConflictState } conflictState;
+
+    union { null, FolderSyncConfig } syncConfig; // only set in some simplefs RPC responses
+  }
+
+  // FolderHandle identifies a Folder/Tlf.
+  record FolderHandle {
+    string name;
+    FolderType folderType;
+    boolean created;          // this folder was just created by this user
+  }
+
+  // Each of your TLFs is in one of 3 states with respect to favoriting. Either
+  // you've favorited it, or you've ignored it, or you haven't done either of
+  // those things yet ("new"). The favorite/list endpoint returns 3 lists,
+  // representing all the TLFs you have in each of those 3 states, and we
+  // marshall that result into this struct.
+  record FavoritesResult {
+    array<Folder> favoriteFolders;
+    array<Folder> ignoredFolders;
+    array<Folder> newFolders;
+  }
+
+  /**
+    Adds a folder to a user's list of favorite folders.
+    */
+  void favoriteAdd(int sessionID, FolderHandle folder);
+
+  /**
+    Removes a folder from a user's list of favorite folders.
+    */
+  void favoriteIgnore(int sessionID, FolderHandle folder);
+
+  /**
+    Returns all of a user's favorite folders.
+    */
+  FavoritesResult getFavorites(int sessionID);
+}

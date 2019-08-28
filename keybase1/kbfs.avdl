@@ -1,0 +1,107 @@
+@namespace("keybase.1")
+
+/*
+ * TODO: move 'favorite' protocol functions inside 'kbfs' protocol.
+ */
+
+protocol kbfs {
+
+  import idl "kbfs_common.avdl";
+
+  /**
+    Idea is that kbfs would call the function below whenever these actions are
+    performed on a file.
+
+    Note that this list/interface is very temporary and highly likely to change
+    significantly.
+
+    It is just a starting point to get kbfs notifications through the daemon to
+    the clients.
+        */
+  @lint("ignore")
+  void FSEvent(FSNotification event);
+
+  /**
+    kbfs calls this whenever the currently subscribed-to folder (via the
+    SimpleFSList[Recursive call) has been updated.
+        */
+  @lint("ignore")
+  void FSPathUpdate(string path) oneway;
+
+  /**
+    kbfs calls this as a response to receiving an FSEditListRequest with a
+    given requestID.
+        */
+  @lint("ignore")
+  void FSEditList(FSFolderEditHistory edits, int requestID);
+
+  /**
+    FSSyncStatus is called by KBFS as a response to receiving an
+    FSSyncStatusRequest with a given requestID.
+        */
+  @lint("ignore")
+  void FSSyncStatus(FSSyncStatus status, int requestID);
+
+  /**
+    FSSyncEvent is called by KBFS when the sync status of an individual path
+    changes.
+        */
+  @lint("ignore")
+  void FSSyncEvent(FSPathSyncStatus event);
+
+  /**
+    FSOverallSyncEvent is called by KBFS when the overall sync status
+    changes.
+        */
+  @lint("ignore")
+  void FSOverallSyncEvent(FolderSyncStatus status);
+
+  /**
+    FSOnlineStatusChangedEvent is called by KBFS when the online status changes.
+        */
+  @lint("ignore")
+  void FSOnlineStatusChangedEvent(boolean online);
+
+  /**
+    FSFavoritesChangedEvent is called by KBFS when the favorites list changes.
+        */
+  @lint("ignore")
+  void FSFavoritesChangedEvent();
+
+  @lint("ignore")
+  void FSSubscriptionNotifyPathEvent(string subscriptionID, string path,  PathSubscriptionTopic topic);
+
+  @lint("ignore")
+  void FSSubscriptionNotifyEvent(string subscriptionID, SubscriptionTopic topic);
+
+  /**
+    createTLF is called by KBFS to associate the tlfID with the given teamID,
+    using the v2 Team-based system.
+   */
+  void createTLF(TeamID teamID, TLFID tlfID);
+
+  record KBFSTeamSettings {
+    TLFID tlfID;
+  }
+
+  /**
+    getKBFSTeamSettings gets the settings written for the team in the team's sigchain.
+  */
+  KBFSTeamSettings getKBFSTeamSettings(TeamID teamID, OfflineAvailability oa);
+
+  /**
+    upgradeTLF upgrades a TLF to use implicit team keys
+  */
+  void upgradeTLF(string tlfName, boolean public);
+
+  /**
+    Encrypt cached favorites to store on disk.
+  */
+  bytes encryptFavorites(bytes dataToEncrypt);
+
+  /**
+    Decrypt cached favorites stored on disk.
+  */
+  bytes decryptFavorites(bytes dataToEncrypt);
+
+}

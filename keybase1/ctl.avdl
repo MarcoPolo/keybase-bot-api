@@ -1,0 +1,41 @@
+@namespace("keybase.1")
+
+protocol ctl {
+
+  import idl "common.avdl";
+
+  enum ExitCode {
+    OK_0,
+    NOTOK_2,
+    RESTART_4
+  }
+
+  enum DbType {
+    MAIN_0,
+    CHAT_1,
+    FS_BLOCK_CACHE_2,
+    FS_BLOCK_CACHE_META_3,
+    FS_SYNC_BLOCK_CACHE_4,
+    FS_SYNC_BLOCK_CACHE_META_5
+  }
+
+  record DbKey {
+    DbType dbType;
+    int objType;
+    string key;
+  }
+
+  @typedef("bytes") record DbValue {}
+
+  void stop(int sessionID, ExitCode exitCode);
+  void stopService(int sessionID, ExitCode exitCode);
+  void logRotate(int sessionID);
+  void reload(int sessionID);
+  void dbNuke(int sessionID);
+  void dbClean(int sessionID, boolean force, DbType dbType);
+  void appExit(int sessionID);
+
+  void dbDelete(int sessionID, DbKey key);
+  void dbPut(int sessionID, DbKey key, DbValue value);
+  union { null, DbValue } dbGet(int sessionID, DbKey key);
+}

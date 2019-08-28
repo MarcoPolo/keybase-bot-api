@@ -1,0 +1,37 @@
+@namespace("keybase.1")
+protocol NotifyFS {
+
+  import idl "kbfs_common.avdl";
+
+  @notify("")
+  @lint("ignore")
+  void FSActivity(FSNotification notification);
+
+  @notify("")
+  @lint("ignore")
+  void FSPathUpdated(string path) oneway;
+
+  @lint("ignore")
+  void FSSyncActivity(FSPathSyncStatus status) oneway;
+
+  @lint("ignore")
+  void FSEditListResponse(FSFolderEditHistory edits, int requestID) oneway;
+
+  @lint("ignore")
+  void FSSyncStatusResponse(FSSyncStatus status, int requestID) oneway;
+
+  @lint("ignore")
+  void FSOverallSyncStatusChanged(FolderSyncStatus status) oneway;
+
+  @lint("ignore")
+  void FSFavoritesChanged() oneway;
+
+  @lint("ignore")
+  void FSOnlineStatusChanged(boolean online) oneway;
+
+  @lint("ignore")
+  void FSSubscriptionNotifyPath(string subscriptionID, string path, PathSubscriptionTopic topic) oneway;
+
+  @lint("ignore")
+  void FSSubscriptionNotify(string subscriptionID, SubscriptionTopic topic) oneway;
+}

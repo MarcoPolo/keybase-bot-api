@@ -1,0 +1,487 @@
+@namespace("chat.1")
+
+protocol chatUi {
+
+  import idl "github.com/keybase/client/go/protocol/keybase1" as keybase1;
+  import idl "github.com/keybase/client/go/protocol/gregor1" as gregor1;
+  import idl "github.com/keybase/client/go/protocol/stellar1" as stellar1;
+  import idl "common.avdl";
+  import idl "unfurl.avdl";
+  import idl "commands.avdl";
+
+  record UIPagination {
+    string next;
+    string previous;
+    int num;
+    boolean last;
+  }
+
+  record UnverifiedInboxUIItemMetadata {
+    string channelName;
+    string headline;
+    string headlineDecorated;
+    string snippet;
+    string snippetDecoration; // One of: "", "💣" (bomb), "💥" (exploded)
+    array<string> writerNames;
+    array<string> resetParticipants;
+  }
+
+  record UnverifiedInboxUIItem {
+    string convID;
+    TopicType topicType;
+    boolean isPublic;
+    string name;
+    keybase1.TLFVisibility visibility;
+    ConversationStatus status;
+    ConversationMembersType membersType;
+    ConversationMemberStatus memberStatus;
+    TeamType teamType;
+    union{ null, ConversationNotificationInfo } notifications;
+    gregor1.Time time;
+    ConversationVers version;
+    LocalConversationVers localVersion;
+    union { null, RetentionPolicy } convRetention;
+    union { null, RetentionPolicy } teamRetention;
+    MessageID maxMsgID;
+    MessageID maxVisibleMsgID;
+    MessageID readMsgID;
+    union { null , UnverifiedInboxUIItemMetadata } localMetadata;
+    union { null, string } draft;
+
+    union { null, ConversationFinalizeInfo } finalizeInfo;
+    array<ConversationMetadata> supersedes;
+    array<ConversationMetadata> supersededBy;
+
+    ConversationCommandGroups commands;
+  }
+
+  record UnverifiedInboxUIItems {
+    array<UnverifiedInboxUIItem> items;
+    union { null, UIPagination } pagination;
+    boolean offline;
+  }
+
+    enum UIParticipantType {
+    NONE_0,
+    USER_1, // Keybase or SBS
+    PHONENO_2,
+    EMAIL_3
+  }
+
+  record UIParticipant {
+    UIParticipantType type;
+    string assertion;
+    union { null, string } fullName;
+    union { null, string } contactName; // if set this is an imptofu conversation with someone in our contacts
+  }
+
+  record InboxUIItem {
+    string convID;
+    TopicType topicType;
+    boolean isPublic;
+    boolean isEmpty;
+    string name;
+    string snippet;
+    string snippetDecoration; // One of: "", "💣" (bomb), "💥" (exploded)
+    string channel;
+    string headline;
+    string headlineDecorated;
+    union { null, string } draft;
+    keybase1.TLFVisibility visibility;
+    array<UIParticipant> participants;
+    array<string> resetParticipants;
+    ConversationStatus status;
+    ConversationMembersType membersType;
+    ConversationMemberStatus memberStatus;
+    TeamType teamType;
+    gregor1.Time time;
+    union { null, ConversationNotificationInfo } notifications;
+    union { null, ConversationCreatorInfoLocal } creatorInfo;
+    ConversationVers version;
+    LocalConversationVers localVersion;
+    MessageID maxMsgID;
+    MessageID maxVisibleMsgID;
+    MessageID readMsgID;
+    union { null, RetentionPolicy } convRetention;
+    union { null, RetentionPolicy } teamRetention;
+    union { null, ConversationSettingsLocal } convSettings;
+
+    // Finalized convo stuff (KBFS only)
+    union { null, ConversationFinalizeInfo } finalizeInfo;
+    array<ConversationMetadata> supersedes;
+    array<ConversationMetadata> supersededBy;
+
+    // Command support
+    ConversationCommandGroups commands;
+    ConversationCommandGroups botCommands;
+  }
+
+  record InboxUIItemError {
+    ConversationErrorType typ;
+    string message;
+    string unverifiedTLFName;
+    // Only set if typ is for rekeying.
+    union { null, ConversationErrorRekey} rekeyInfo;
+    UnverifiedInboxUIItem remoteConv;
+  }
+
+  record InboxUIItems {
+    array<InboxUIItem> items;
+    union { null, UIPagination } pagination;
+    boolean offline;
+  }
+
+  record UIChannelNameMention {
+    string name;
+    string convID;
+  }
+
+  record UIAssetUrlInfo {
+    string previewUrl;
+    string fullUrl;
+    boolean fullUrlCached;
+    string mimeType;
+    union { null, string } videoDuration;
+    boolean inlineVideoPlayable;
+  }
+
+  record UIPaymentInfo {
+    union { null, stellar1.AccountID } accountID; // "GXXXXXXX..."
+    string amountDescription;                     // "1,323.1234567 XLM"
+    string worth;                                 // "$123.23"
+    string worthAtSendTime;                       // "$123.23 CLP", amount in current user's display currency if this is a pure XLM tx
+    stellar1.BalanceDelta delta;                  // NONE/INCREASE/DECREASE (e.g. INCREASE for "+ 1,323.1234567 XLM" amount above)
+    string note;                                  // secret note
+    stellar1.PaymentID paymentID;                 // opaque paymentID
+    stellar1.PaymentStatus status;                // NONE, PENDING, CLAIMABLE, COMPLETED, ERROR, UNKNOWN
+    string statusDescription;                     // "pending", "completed", "error"
+    string statusDetail;
+    boolean showCancel;                           // true if cancel is an option for this payment
+    string fromUsername;
+    string toUsername;
+    // for path payments
+    string sourceAmount;
+    stellar1.Asset sourceAsset;
+    string issuerDescription;
+  }
+
+  record UIRequestInfo {
+    string amount;
+    string amountDescription;
+    union { null, stellar1.Asset } asset;
+    union { null, stellar1.OutsideCurrencyCode } currency;
+    string worthAtRequestTime;
+    stellar1.RequestStatus status;
+  }
+
+  record UIMessageUnfurlInfo {
+    MessageID unfurlMessageID;
+    string url;
+    UnfurlDisplay unfurl;
+    boolean isCollapsed;
+  }
+
+  record UIMessageValid {
+    MessageID messageID;
+    gregor1.Time ctime;
+    union { null, string } outboxID;
+    MessageBody messageBody;
+    union { null, string } decoratedTextBody;
+    string bodySummary;
+    string senderUsername;
+    string senderDeviceName;
+    string senderDeviceType;
+    gregor1.UID senderUID;
+    gregor1.DeviceID senderDeviceID;
+    boolean superseded;
+    union { null, UIAssetUrlInfo } assetUrlInfo;
+    union { null, gregor1.Time } senderDeviceRevokedAt;
+    array<string> atMentions;
+    ChannelMention channelMention;
+    array<UIChannelNameMention> channelNameMentions;
+    boolean isEphemeral;
+    boolean isEphemeralExpired;
+    union { null, string} explodedBy;
+    gregor1.Time etime;
+    // reactionText -> [Reaction(username, reactionMsgID)...]
+    ReactionMap reactions;
+    boolean hasPairwiseMacs;
+    array<UIPaymentInfo> paymentInfos;
+    union { null, UIRequestInfo } requestInfo;
+    array<UIMessageUnfurlInfo> unfurls;
+    boolean isCollapsed;
+    union { null, string } flipGameID;
+    boolean isDeleteable;
+    boolean isEditable;
+    union { null, UIMessage } replyTo;
+    // TODO HOTPOT-330 convert to bot username
+    union { null, gregor1.UID } botUID;
+  }
+
+  record UIMessageOutbox {
+    OutboxState state;
+    string outboxID;
+    MessageType messageType;
+    string body;
+    union { null, string } decoratedTextBody;
+    gregor1.Time ctime;
+    double ordinal;
+    boolean isEphemeral;
+    union { null, string} flipGameID;
+    union { null, UIMessage } replyTo;
+
+    // For attachments
+    string filename;
+    string title;
+    union { null, MakePreviewRes } preview;
+  }
+
+  enum MessageUnboxedState {
+    VALID_1,
+    ERROR_2,
+    OUTBOX_3,
+    PLACEHOLDER_4
+  }
+
+  variant UIMessage switch (MessageUnboxedState state) {
+    case VALID: UIMessageValid;
+    case ERROR: MessageUnboxedError;
+    case OUTBOX: UIMessageOutbox;
+    case PLACEHOLDER: MessageUnboxedPlaceholder;
+  }
+
+  record UIMessages {
+    array<UIMessage> messages;
+    union { null, UIPagination } pagination;
+  }
+
+  record UITeamMention {
+    boolean inTeam;
+    boolean open;
+    union { null, string } description;
+    union { null, int } numMembers;
+    array<string> publicAdmins;
+    union { null, string } convID;
+  }
+
+  enum UITextDecorationTyp {
+    PAYMENT_0,
+    ATMENTION_1,
+    CHANNELNAMEMENTION_2,
+    MAYBEMENTION_3,
+    LINK_4,
+    MAILTO_5
+  }
+
+  enum UIMaybeMentionStatus {
+    UNKNOWN_0,
+    USER_1,
+    TEAM_2,
+    NOTHING_3
+  }
+
+  record UILinkDecoration {
+    string display;
+    string url;
+  }
+
+  variant UIMaybeMentionInfo switch (UIMaybeMentionStatus status) {
+    case UNKNOWN: void;
+    case USER: void;
+    case TEAM: UITeamMention;
+    case NOTHING: void;
+  }
+
+  variant UITextDecoration switch (UITextDecorationTyp typ) {
+    case PAYMENT: TextPayment;
+    case ATMENTION: string;
+    case CHANNELNAMEMENTION: UIChannelNameMention;
+    case MAYBEMENTION: MaybeMention;
+    case LINK: UILinkDecoration;
+    case MAILTO: UILinkDecoration;
+  }
+
+  void chatAttachmentDownloadStart(int sessionID);
+  void chatAttachmentDownloadProgress(int sessionID, long bytesComplete, long bytesTotal) oneway;
+  void chatAttachmentDownloadDone(int sessionID);
+
+  void chatInboxUnverified(int sessionID, string inbox);
+  void chatInboxConversation(int sessionID, string conv);
+  void chatInboxFailed(int sessionID, ConversationID convID, InboxUIItemError error);
+
+  enum UIChatThreadStatusTyp {
+    NONE_0,
+    SERVER_1,
+    VALIDATING_2,
+    VALIDATED_3
+  }
+  variant UIChatThreadStatus switch (UIChatThreadStatusTyp typ) {
+    case NONE: void;
+    case SERVER: void;
+    case VALIDATING: int;
+    case VALIDATED: void;
+  }
+  void chatThreadCached(int sessionID, union { null, string } thread);
+  void chatThreadFull(int sessionID, string thread);
+  void chatThreadStatus(int sessionID, UIChatThreadStatus status);
+
+  void chatSearchHit(int sessionID, ChatSearchHit searchHit);
+  void chatSearchDone(int sessionID, int numHits);
+
+  record UIChatSearchConvHit {
+    string convID;
+    TeamType teamType;
+    string name;
+    gregor1.Time mtime;
+  }
+  record UIChatSearchConvHits {
+    array<UIChatSearchConvHit> hits;
+    boolean unreadMatches;
+  }
+  void chatSearchInboxStart(int sessionID);
+  void chatSearchInboxHit(int sessionID, ChatSearchInboxHit searchHit);
+  void chatSearchInboxDone(int sessionID, ChatSearchInboxDone res);
+  void chatSearchIndexStatus(int sessionID, ChatSearchIndexStatus status);
+  void chatSearchConvHits(int sessionID, UIChatSearchConvHits hits);
+
+  boolean chatConfirmChannelDelete(int sessionID, string channel);
+
+  // Chat Stellar send confirm screen UI
+  record UIChatPayment {
+    string username;
+    string fullName;
+    string xlmAmount;
+    union { null, string } error;
+    union { null, string } displayAmount;
+  }
+  record UIChatPaymentSummary {
+    string xlmTotal;
+    string displayTotal;
+    array<UIChatPayment> payments;
+  }
+  void chatStellarShowConfirm(int sessionID);
+  boolean chatStellarDataConfirm(int sessionID, UIChatPaymentSummary summary);
+  boolean chatStellarDataError(int sessionID, keybase1.Status error);
+  void chatStellarDone(int sessionID, boolean canceled);
+
+ record GiphySearchResult {
+    string targetUrl;
+    string previewUrl;
+    int previewWidth;
+    int previewHeight;
+    boolean previewIsVideo;
+  }
+  record GiphySearchResults {
+    array<GiphySearchResult> results;
+    string galleryUrl;
+  }
+  void chatGiphySearchResults(int sessionID, string convID, GiphySearchResults results);
+  void chatGiphyToggleResultWindow(int sessionID, string convID, boolean show, boolean clearInput);
+
+  void chatShowManageChannels(int sessionID, string teamname);
+
+  enum UICoinFlipPhase {
+    COMMITMENT_0,
+    REVEALS_1,
+    COMPLETE_2,
+    ERROR_3
+  }
+  record UICoinFlipErrorParticipant {
+    string user;
+    string device;
+  }
+  record UICoinFlipAbsenteeError {
+    array<UICoinFlipErrorParticipant> absentees;
+  }
+  enum UICoinFlipErrorTyp {
+    GENERIC_0,
+    ABSENTEE_1,
+    TIMEOUT_2,
+    ABORTED_3,
+    DUPREG_4,
+    DUPCOMMITCOMPLETE_5,
+    DUPREVEAL_6,
+    COMMITMISMATCH_7
+  }
+  variant UICoinFlipError switch (UICoinFlipErrorTyp typ) {
+  case GENERIC: string;
+  case ABSENTEE: UICoinFlipAbsenteeError;
+  case TIMEOUT: void;
+  case ABORTED: void;
+  case DUPREG: UICoinFlipErrorParticipant;
+  case DUPCOMMITCOMPLETE: UICoinFlipErrorParticipant;
+  case DUPREVEAL: UICoinFlipErrorParticipant;
+  case COMMITMISMATCH: UICoinFlipErrorParticipant;
+  }
+  enum UICoinFlipResultTyp {
+    NUMBER_0,
+    SHUFFLE_1,
+    DECK_2,
+    HANDS_3,
+    COIN_4
+  }
+  record UICoinFlipHand {
+    string target;
+    array<int> hand;
+  }
+  variant UICoinFlipResult switch (UICoinFlipResultTyp typ) {
+    case NUMBER: string;
+    case SHUFFLE: array<string>;
+    case DECK: array<int>;
+    case HANDS: array<UICoinFlipHand>;
+    case COIN: bool; // heads?
+  }
+  record UICoinFlipParticipant {
+    string uid;
+    string deviceID;
+    string username;
+    string deviceName;
+    string commitment;
+    union { null, string } reveal;
+  }
+  record UICoinFlipStatus {
+    string gameID;
+    UICoinFlipPhase phase;
+    string progressText;
+    string resultText;
+    string commitmentVisualization;
+    string revealVisualization;
+    array<UICoinFlipParticipant> participants;
+    union { null, UICoinFlipError } errorInfo;
+    union { null, UICoinFlipResult } resultInfo;
+  }
+  void chatCoinFlipStatus(int sessionID, array<UICoinFlipStatus> statuses);
+
+  record UICommandMarkdown {
+    string body;
+    union { null, string} title;
+  }
+  void chatCommandMarkdown(int sessionID, string convID, union { null, UICommandMarkdown } md);
+
+  void chatMaybeMentionUpdate(int sessionID, string teamName, string channel, UIMaybeMentionInfo info);
+
+  void chatLoadGalleryHit(int sessionID, UIMessage message);
+
+  // Location support
+  @typedef("uint64") @lint("ignore") record LocationWatchID {}
+  LocationWatchID chatWatchPosition(int sessionID, ConversationID convID);
+  void chatClearWatch(int sessionID, LocationWatchID id);
+
+  // Slash command feedback
+  enum UICommandStatusDisplayTyp {
+    STATUS_0,
+    WARNING_1,
+    ERROR_2
+  }
+  enum UICommandStatusActionTyp {
+    APPSETTINGS_0
+  }
+  void chatCommandStatus(int sessionID, string convID, string displayText, UICommandStatusDisplayTyp typ, array<UICommandStatusActionTyp> actions);
+  enum UIBotCommandsUpdateStatus {
+    UPTODATE_0,
+    UPDATING_1,
+    FAILED_2,
+    BLANK_3
+  }
+  void chatBotCommandsUpdateStatus(int sessionID, string convID, UIBotCommandsUpdateStatus status);
+}

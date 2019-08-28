@@ -1,0 +1,170 @@
+@namespace("keybase.1")
+protocol identifyUi {
+  import idl "common.avdl";
+  import idl "identify_common.avdl";
+
+  record ProofResult {
+    ProofState state;
+    ProofStatus status;
+    string desc;
+  }
+
+  record IdentifyRow {
+    @lint("ignore")
+    int rowId;
+    RemoteProof proof;
+    union { null, TrackDiff } trackDiff;
+  }
+
+  // XXX when FOKID goes away, remove pgpFingerprint from this
+  record IdentifyKey {
+    bytes pgpFingerprint;
+    @lint("ignore")
+    KID KID;
+    union { null, TrackDiff } trackDiff;
+    boolean breaksTracking;
+    SigID sigID;
+  }
+
+  record Cryptocurrency {
+    @lint("ignore")
+    int rowId;
+    bytes pkhash;
+    string address;
+    SigID sigID;
+    string type;
+    string family;
+  }
+
+  record StellarAccount {
+    string accountID;
+    string federationAddress;
+    SigID sigID;
+  }
+
+  record RevokedProof {
+    RemoteProof proof;
+    TrackDiff diff;
+    boolean snoozed;
+  }
+
+  record Identity {
+    union { null, Status } status;
+    Time whenLastTracked;
+    array<IdentifyRow> proofs;
+    array<Cryptocurrency> cryptocurrency;
+    array<TrackDiff> revoked;
+    array<RevokedProof> revokedDetails;
+    boolean breaksTracking;
+  }
+
+  record SigHint {
+    @lint("ignore")
+    string remoteId;
+    string humanUrl;
+    string apiUrl;
+    string checkText;
+  }
+
+  enum CheckResultFreshness {
+    FRESH_0,
+    AGED_1,
+    RANCID_2
+  }
+
+  record CheckResult {
+    ProofResult proofResult;
+    Time time;
+    CheckResultFreshness freshness;
+  }
+
+  record LinkCheckResult {
+    @lint("ignore")
+    int proofId;
+    ProofResult proofResult;
+    ProofResult snoozedResult;
+    boolean torWarning;
+    Time tmpTrackExpireTime;
+    union { null, CheckResult } cached;
+    union { null, TrackDiff } diff;
+    union { null, TrackDiff } remoteDiff;
+    union { null, SigHint } hint;
+    boolean breaksTracking;
+  }
+
+  record UserTeamShowcase {
+    @jsonkey("fq_name")
+    string fqName;
+    @jsonkey("open")
+    boolean open;
+    @jsonkey("team_is_showcased")
+    boolean teamIsShowcased;
+    @jsonkey("description")
+    string description;
+    @jsonkey("role")
+    TeamRole role;
+    @jsonkey("public_admins")
+    array<string> publicAdmins;
+    @jsonkey("num_members")
+    int numMembers;
+  }
+
+  record UserCard {
+    int following;
+    int followers;
+    UID uid;
+    string fullName;
+    string location;
+    string bio;
+    string website;
+    string twitter;
+    boolean youFollowThem;
+    boolean theyFollowYou;
+    array<UserTeamShowcase> teamShowcase;
+    boolean registeredForAirdrop;
+    boolean blocked;
+  }
+
+  record ConfirmResult {
+    boolean identityConfirmed; // true if the user answers yes to "Is this the user you wanted?"
+    boolean remoteConfirmed;   // true if the user answers yes to "Publicly write tracking statement to server?"
+    boolean expiringLocal;    // true if the user answers yes to "Expire local tracking statement after X?"
+    boolean autoConfirmed;    // true if autoconfirmed
+  }
+
+  enum DismissReasonType {
+    NONE_0,
+    HANDLED_ELSEWHERE_1
+  }
+
+  record DismissReason {
+    DismissReasonType type;
+    string reason;
+    string resource;
+  }
+
+  void displayTLFCreateWithInvite(int sessionID, string folderName, boolean isPrivate, string assertion, SocialAssertion socialAssertion, string inviteLink, boolean throttled);
+
+  // The IdentifyUI can be delegated to another process.  Call this function
+  // to initialize the delegated UI; it returns the sessionID to use in the
+  // following exchange. Return 0 on failure.
+  int delegateIdentifyUI();
+
+  void start(int sessionID, string username, IdentifyReason reason, boolean forceDisplay=false);
+  void displayKey(int sessionID, IdentifyKey key);
+  void reportLastTrack(int sessionID, union { null, TrackSummary } track);
+  void launchNetworkChecks(int sessionID, Identity identity, User user);
+  void displayTrackStatement(int sessionID, string stmt);
+
+  void finishWebProofCheck(int sessionID, RemoteProof rp, LinkCheckResult lcr);
+  void finishSocialProofCheck(int sessionID, RemoteProof rp, LinkCheckResult lcr);
+  void displayCryptocurrency(int sessionID, Cryptocurrency c);
+  void displayStellarAccount(int sessionID, StellarAccount a);
+  void reportTrackToken(int sessionID, TrackToken trackToken);
+  void displayUserCard(int sessionID, UserCard card);
+  ConfirmResult confirm(int sessionID, IdentifyOutcome outcome);
+  void cancel(int sessionID);  // this will always be called
+  void finish(int sessionID);  // this might not be called if identify short-circuited
+
+  void dismiss(int sessionID, string username, DismissReason reason);
+}

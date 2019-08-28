@@ -1,0 +1,108 @@
+@namespace("keybase.1")
+
+protocol provisionUi {
+  import idl "common.avdl";
+  import idl "gpg_common.avdl";
+
+  // DEPRECATED:
+  enum ProvisionMethod {
+    DEVICE_0,
+    PAPER_KEY_1,
+    PASSPHRASE_2,
+    GPG_IMPORT_3,
+    GPG_SIGN_4
+  }
+  /**
+    DEPRECATED:
+    Called during device provisioning for the user to select a
+    method for provisioning.  gpgOption will be true if GPG
+    should be offered as an option.
+    */
+  ProvisionMethod chooseProvisioningMethod(int sessionID, boolean gpgOption);
+
+  enum GPGMethod {
+    GPG_NONE_0,
+    GPG_IMPORT_1,
+    GPG_SIGN_2
+  }
+  /**
+    Called during device provisioning for the user to select a
+    GPG method, either import the key into keybase's local keyring
+    or use GPG to sign a provisioning statement.
+
+    The keys are provided for display purposes, so the UI can
+    do something like "We found the following GPG keys on this
+    machine.  How would you like to use one of them to provision
+    this device?"
+
+    After this, gpg_ui.selectKey will be called (if there are
+    multiple keys available).
+    */
+  GPGMethod chooseGPGMethod(int sessionID, array<GPGKey> keys);
+
+  /**
+    If there was an error importing a gpg key into the local
+    keyring, tell the user and offer to switch to GPG signing
+    with this key.  Return true to switch to GPG signing,
+    false to abort provisioning.
+    */
+  boolean switchToGPGSignOK(int sessionID, GPGKey key, string importError);
+
+  DeviceID chooseDevice(int sessionID, array<Device> devices, boolean canSelectNoDevice);
+
+  enum ChooseType {
+    EXISTING_DEVICE_0,
+    NEW_DEVICE_1
+  }
+  /**
+   If provisioning via device, this will be called so user can select the provisioner/provisionee device type: desktop or mobile.
+   If selecting the existing device type, set kind to EXISTING_DEVICE_0.
+   If selecting the new device type, set kind to NEW_DEVICE_1.
+   */
+  DeviceType chooseDeviceType(int sessionID, ChooseType kind);
+
+  /**
+   SecretResponse should be returned by DisplayAndPromptSecret.  Use either secret or phrase.
+   */
+  record SecretResponse {
+    bytes secret;
+    string phrase;
+  }
+
+  /**
+   DisplayAndPromptSecret displays a secret that the user can enter into the other device.
+   It also can return a secret that the user enters into this device (from the other device).
+   If it does not return a secret, it will be canceled when this device receives the secret via kex2.
+   If there is an error in the phrase, then previousErr will be set when this is called again.
+   */
+  @lint("ignore")
+  SecretResponse DisplayAndPromptSecret(int sessionID, bytes secret, string phrase, DeviceType otherDeviceType, string previousErr);
+
+  /**
+   DisplaySecretExchanged is called when the kex2 secret has successfully been exchanged by the two
+   devices.
+   */
+  @lint("ignore")
+  void DisplaySecretExchanged(int sessionID);
+
+  /**
+   PromptNewDeviceName is called when the device provisioning process needs a name for the new device.
+   To help the clients not send a duplicate name, existingDevices is populated with the current device
+   names for the user.  If the device name returned to the service is invalid or already
+   taken, it will call this again with an error message in errorMessage.
+   */
+  @lint("ignore")
+  string PromptNewDeviceName(int sessionID, array<string> existingDevices, string errorMessage);
+
+  /**
+   ProvisioneeSuccess is called on provisionee when it is successfully provisioned.
+   */
+  @lint("ignore")
+  void ProvisioneeSuccess(int sessionID, string username, string deviceName);
+
+  /**
+   ProvisionerSuccess is called on provisioner when it successfully provisions another device.
+   */
+  @lint("ignore")
+  void ProvisionerSuccess(int sessionID, string deviceName, string deviceType);
+}
