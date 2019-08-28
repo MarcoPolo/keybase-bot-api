@@ -43,4 +43,4 @@ protocol_body = { (comment | import | typedef | generic_annotation | record | en
 
 protocol = {"protocol" ~ ident ~ "{" ~ protocol_body* ~ "}" }
 
-avdl_protocol = { namespace_annotation? ~ protocol }
+avdl_protocol = { WHITESPACE+ ~ namespace_annotation? ~ protocol }
