@@ -1,0 +1,18 @@
+@namespace("keybase.1")
+
+protocol session {
+  import idl "common.avdl";
+
+  record Session {
+    UID uid;
+    string username;
+    string token;
+    @lint("ignore")
+    KID deviceSubkeyKid;
+    @lint("ignore")
+    KID deviceSibkeyKid;
+  }
+
+  Session currentSession(int sessionID);
+  void sessionPing();
+}

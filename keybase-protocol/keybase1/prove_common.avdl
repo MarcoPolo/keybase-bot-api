@@ -1,0 +1,161 @@
+@namespace("keybase.1")
+protocol proveCommon {
+
+  enum ProofState {
+    NONE_0,
+    OK_1,
+    TEMP_FAILURE_2,
+    PERM_FAILURE_3,
+    LOOKING_4,
+    SUPERSEDED_5,
+    POSTED_6,
+    REVOKED_7,
+    DELETED_8,
+    UNKNOWN_TYPE_9,
+    SIG_HINT_MISSING_10,
+    UNCHECKED_11
+  }
+
+  /**
+    3: It's been found in the hunt, but not proven yet
+    1xx: Retryable soft errors; note that this will be put in the proof_cache, but won't
+       be returned from the proof cache in most cases. Their freshness will always be
+       RANCID.
+    2xx: Will likely result in a hard error, if repeated enough
+    3xx: Hard final errors
+    */
+  enum ProofStatus {
+    NONE_0,
+    OK_1,
+    LOCAL_2,
+    FOUND_3,
+
+    BASE_ERROR_100,
+    HOST_UNREACHABLE_101,
+    PERMISSION_DENIED_103,
+    FAILED_PARSE_106,
+    DNS_ERROR_107,
+    AUTH_FAILED_108,
+    HTTP_429_129,
+    HTTP_500_150,
+    TIMEOUT_160,
+    INTERNAL_ERROR_170,
+    UNCHECKED_171,  /* must be a soft error so that it can't be returned to active mode identifiers */
+    MISSING_PVL_172,
+
+    BASE_HARD_ERROR_200,
+    NOT_FOUND_201,
+    CONTENT_FAILURE_202,
+    BAD_USERNAME_203,
+    BAD_REMOTE_ID_204,
+    TEXT_NOT_FOUND_205,
+    BAD_ARGS_206,
+    CONTENT_MISSING_207,
+    TITLE_NOT_FOUND_208,
+    SERVICE_ERROR_209,
+    TOR_SKIPPED_210,
+    TOR_INCOMPATIBLE_211,
+    HTTP_300_230,
+    HTTP_400_240,
+    HTTP_OTHER_260,
+    EMPTY_JSON_270,
+
+    DELETED_301,
+    SERVICE_DEAD_302,
+    BAD_SIGNATURE_303,
+    BAD_API_URL_304,
+    UNKNOWN_TYPE_305,
+    NO_HINT_306,
+    BAD_HINT_TEXT_307,
+    INVALID_PVL_308
+  }
+
+  enum ProofType {
+    NONE_0,
+    KEYBASE_1,
+    TWITTER_2,
+    GITHUB_3,
+    REDDIT_4,
+    COINBASE_5,
+    HACKERNEWS_6,
+    // Reserved (in line with keybase/proofs) but not yet implemented.
+    // BITBUCKET_7,
+    FACEBOOK_8,
+    GENERIC_SOCIAL_9,
+    GENERIC_WEB_SITE_1000,
+    DNS_1001,
+    PGP_1002,
+    ROOTER_100001
+  }
+
+  record SelectorEntry {
+    // Exactly one of Is* is true
+    boolean isIndex;
+    int index;
+    boolean isKey;
+    string key;
+    boolean isAll;
+    boolean isContents;
+  }
+
+  record ParamProofJSON {
+    @jsonkey("sig_hash")
+    SigID sigHash;
+    @jsonkey("kb_username")
+    string kbUsername;
+  }
+
+  record ParamProofUsernameConfig {
+    string re;
+    int min;
+    int max;
+  }
+
+  record ParamProofLogoConfig {
+    @jsonkey("svg_black")
+    string svgBlack;
+    @jsonkey("svg_full")
+    string svgFull;
+  }
+
+  record ParamProofServiceConfig {
+    int version;
+    string domain;
+    @jsonkey("display_name")
+    string displayName;
+    union { null, ParamProofLogoConfig} logo;
+    string description;
+    @jsonkey("username")
+    ParamProofUsernameConfig usernameConfig;
+    @jsonkey("brand_color")
+    string brandColor;
+    @jsonkey("prefill_url")
+    string prefillUrl;
+    @jsonkey("profile_url")
+    string profileUrl;
+    @jsonkey("check_url")
+    string checkUrl;
+    @jsonkey("check_path")
+    array<SelectorEntry> checkPath;
+    @jsonkey("avatar_path")
+    array<SelectorEntry> avatarPath;
+  }
+
+  record ServiceDisplayConfig {
+    @jsonkey("creation_disabled")
+    boolean creationDisabled;
+    int priority;
+    string key;
+    union { null, string } group;
+    boolean new;
+    @jsonkey("logo_key")
+    string logoKey;
+  }
+
+  record ExternalServiceConfig {
+    @jsonkey("schema_version")
+    int schemaVersion;
+    union { null, ServiceDisplayConfig } display;
+    union { null, ParamProofServiceConfig } config;
+  }
+}

@@ -1,0 +1,21 @@
+
+@namespace("keybase.1")
+protocol signup {
+
+  import idl "common.avdl";
+
+  record SignupRes {
+    @lint("ignore")
+    boolean passphraseOk;
+    @lint("ignore")
+    boolean postOk;
+    @lint("ignore")
+    boolean writeOk;
+  }
+
+  void checkUsernameAvailable(int sessionID, string username);
+  SignupRes signup(int sessionID, string email, string inviteCode, string passphrase, string username, string deviceName, DeviceType deviceType, boolean storeSecret, boolean skipMail, boolean genPGPBatch, boolean genPaper, boolean randomPw, boolean verifyEmail);
+  void inviteRequest(int sessionID, string email, string fullname, string notes);
+  void checkInvitationCode(int sessionID, string invitationCode);
+  string getInvitationCode(int sessionID);
+}

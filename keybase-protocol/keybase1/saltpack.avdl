@@ -1,0 +1,56 @@
+@namespace("keybase.1")
+
+protocol saltpack {
+  import idl "common.avdl";
+  import idl "identify_common.avdl";
+
+  enum AuthenticityType {
+    SIGNED_0, 
+    REPUDIABLE_1, 
+    ANONYMOUS_2
+  }
+
+  record SaltpackEncryptOptions {
+    array<string> recipients; // usernames or assertions
+    array<string> teamRecipients; // team names
+    AuthenticityType authenticityType;
+    boolean useEntityKeys;
+    boolean useDeviceKeys;
+    boolean usePaperKeys;    
+    boolean noSelfEncrypt;
+    boolean binary;
+    int saltpackVersion;
+
+    boolean useKBFSKeysOnlyForTesting; // to test messages which use old kbfs saltpack keys/pseudonyms
+  }
+
+  record SaltpackDecryptOptions {
+    boolean interactive;
+    boolean forceRemoteCheck;
+    boolean usePaperKey;
+  }
+
+  record SaltpackSignOptions {
+    boolean detached;
+    boolean binary;
+    int saltpackVersion;
+  }
+
+  record SaltpackVerifyOptions {
+    string signedBy; // optional
+    bytes signature; // detached signature data (binary or armored), can be empty
+  }
+
+  void saltpackEncrypt(int sessionID, Stream source, Stream sink, SaltpackEncryptOptions opts);
+
+  record SaltpackEncryptedMessageInfo {
+    array<Device> devices;
+    int numAnonReceivers;
+    boolean receiverIsAnon;
+    SaltpackSender sender;
+  }
+
+  SaltpackEncryptedMessageInfo saltpackDecrypt(int sessionID, Stream source, Stream sink, SaltpackDecryptOptions opts);
+  void saltpackSign(int sessionID, Stream source, Stream sink, SaltpackSignOptions opts);
+  void saltpackVerify(int sessionID, Stream source, Stream sink, SaltpackVerifyOptions opts);
+}

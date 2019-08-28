@@ -1,0 +1,9 @@
+
+@namespace("keybase.1")
+protocol NotifySession {
+
+  @notify("")
+  void loggedOut();
+  void loggedIn(string username, boolean signedUp); // signedUp if this is due to a signup
+  void clientOutOfDate(string upgradeTo, string upgradeURI, string upgradeMsg);
+}

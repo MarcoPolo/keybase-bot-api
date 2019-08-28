@@ -1,0 +1,38 @@
+
+@namespace("keybase.1")
+
+protocol notifyCtl {
+  import idl "common.avdl";
+
+  record NotificationChannels {
+    boolean session;
+    boolean users;
+    boolean kbfs;
+    boolean kbfsdesktop;
+    boolean kbfslegacy;
+    boolean kbfssubscription;
+    boolean tracking;
+    boolean favorites;
+    boolean paperkeys;
+    boolean keyfamily;
+    boolean service;
+    boolean app;
+    boolean chat;
+    boolean pgp;
+    boolean kbfsrequest; // deprecated
+    boolean badges;
+    boolean reachability;
+    boolean team;
+    boolean ephemeral;
+    boolean teambot;
+    boolean chatkbfsedits;
+    boolean chatdev;
+    boolean deviceclone;
+    boolean chatattachments;
+    boolean wallet;
+    boolean audit;
+    boolean runtimestats;
+  }
+
+  void setNotifications(NotificationChannels channels);
+}

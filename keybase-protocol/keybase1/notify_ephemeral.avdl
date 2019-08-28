@@ -1,0 +1,9 @@
+@namespace("keybase.1")
+protocol NotifyEphemeral {
+  import idl "common.avdl";
+
+  @notify("")
+  void newTeamEk(TeamID id, EkGeneration generation);
+  void newTeambotEk(TeamID id, EkGeneration generation);
+  void teambotEkNeeded(TeamID id, UID uid, EkGeneration generation);
+}

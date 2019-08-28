@@ -1,0 +1,81 @@
+@namespace("keybase.1")
+
+// tlfKeys defines RPC protocol from service (keybase daemon) to kbfs for
+// getting TLF keys
+protocol tlfKeys {
+  import idl "common.avdl";
+  import idl "identify.avdl";
+
+  enum TLFIdentifyBehavior {
+    UNSET_0,
+    CHAT_CLI_1,
+    CHAT_GUI_2,
+    REMOVED_AND_UNUSED_3,
+    KBFS_REKEY_4,
+    KBFS_QR_5,
+    CHAT_SKIP_6,
+    SALTPACK_7,
+    CLI_8,
+    GUI_9,
+    DEFAULT_KBFS_10,
+    KBFS_CHAT_11,
+    RESOLVE_AND_CHECK_12,
+    GUI_PROFILE_13,
+    KBFS_INIT_14,
+    FS_GUI_15
+  }
+
+  @typedef("string")
+  @lint("ignore")
+  record CanonicalTlfName {}
+
+  record CryptKey {
+    @lint("ignore")
+    int KeyGeneration;
+    @lint("ignore")
+    Bytes32 Key;
+  }
+
+  record TLFBreak {
+    array<TLFIdentifyFailure> breaks;
+  }
+
+  record TLFIdentifyFailure {
+    User user;
+    union { null, IdentifyTrackBreaks } breaks;
+  }
+
+  record CanonicalTLFNameAndIDWithBreaks {
+    TLFID tlfID;
+    @lint("ignore")
+    CanonicalTlfName CanonicalName;
+
+    TLFBreak breaks;
+  }
+
+  record GetTLFCryptKeysRes {
+    CanonicalTLFNameAndIDWithBreaks nameIDBreaks;
+
+    // crypt keys of all generations for this TLF, in order, starting from
+    // FirstValidKeyGen
+    @lint("ignore")
+    array<CryptKey> CryptKeys;
+  }
+
+  record TLFQuery {
+    string tlfName;
+    TLFIdentifyBehavior identifyBehavior;
+  }
+
+  /**
+   getTLFCryptKeys returns TLF crypt keys from all generations and the TLF ID.
+   TLF ID should not be cached or stored persistently.
+   */
+  GetTLFCryptKeysRes getTLFCryptKeys(TLFQuery query);
+
+  /**
+   getPublicCanonicalTLFNameAndID return the canonical name and TLFID for tlfName.
+   TLF ID should not be cached or stored persistently.
+   */
+  CanonicalTLFNameAndIDWithBreaks getPublicCanonicalTLFNameAndID(TLFQuery query);
+}

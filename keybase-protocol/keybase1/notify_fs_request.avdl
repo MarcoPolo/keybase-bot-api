@@ -1,0 +1,13 @@
+@namespace("keybase.1")
+protocol NotifyFSRequest {
+
+  import idl "kbfs_common.avdl";
+
+  @notify("")
+  @lint("ignore")
+  void FSEditListRequest(FSEditListRequest req);
+
+  @notify("")
+  @lint("ignore")
+  void FSSyncStatusRequest(FSSyncStatusRequest req);
+}

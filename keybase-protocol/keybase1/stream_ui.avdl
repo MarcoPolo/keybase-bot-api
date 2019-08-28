@@ -1,0 +1,10 @@
+@namespace("keybase.1")
+
+protocol streamUi {
+  import idl "common.avdl";
+
+  void close(int sessionID, Stream s);
+  bytes read(int sessionID, Stream s, int sz);
+  void reset(int sessionID, Stream s);
+  int write(int sessionID, Stream s, bytes buf);
+}
