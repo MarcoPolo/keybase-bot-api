@@ -705,15 +705,4 @@ fn main() {
   } else {
     println!("{:#?}", parsed.unwrap());
   }
-
-  // let input2 = r#"union { foo }"#;
-  // let parsed = AVDLParser::parse(avdl::Rule::ty, input2);
-  // if let Err(e) = parsed {
-  //   println!("{}", e);
-  // } else {
-  //   println!("{:#?}", parsed.unwrap());
-  // }
-
-  // let parsed2 = parse_idl(input);
-  // println!("{:#?}", parsed2);
 }
