@@ -8,5 +8,8 @@ edition = "2018"
 
 [dependencies]
 pest = "2.1.1"
-pest_derive = "2.1.0"
-avro = "0.2.1"
+avdl-parser = { path = "../avdl-parser" }
+
+[build-dependencies]
+pest = "2.1.1"
+avdl-parser = { path = "../avdl-parser" }

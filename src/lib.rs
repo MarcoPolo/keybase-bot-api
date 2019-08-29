@@ -1,8 +1,3 @@
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
-
-pub mod avdl;
 pub mod which_keybase {
     use std::process::Command;
     pub fn which_keybase() -> String {
