@@ -83,19 +83,6 @@ fn convert_dot_to_sep(a: &str) -> String {
   a.split(".").collect::<Vec<&str>>().join("::")
 }
 
-// These are basically already rust enums, copy/paste instead
-// struct AVDLEnum {
-//   enum_name: String,
-//   enum_fields: Vec<String>,
-// }
-
-// impl<'a> From<Pair<'a, Rule>> for AVDLEnum {
-//   fn from(pair: Pair<'a, Rule>) -> Self {
-//     assert_eq!(pair.as_rule(), Rule::enum_ty);
-//     panic!();
-//   }
-// }
-
 enum AVDLType {
   Simple(String),
   Maybe(String),
@@ -161,13 +148,93 @@ where
   Ok(())
 }
 
+struct EnumCaseTy {
+  enum_name: String,
+  comment: Option<String>,
+}
+
+impl<'a> From<Pair<'a, Rule>> for EnumCaseTy {
+  fn from(pair: Pair<'a, Rule>) -> Self {
+    let mut parts = pair.into_inner();
+    let mut enum_name: Option<String> = None;
+    let mut comment: Option<String> = None;
+    while let Some(pair) = parts.next() {
+      match pair.as_rule() {
+        Rule::ident => {
+          enum_name = Some(quiet_voice(
+            pair.as_str().split("_").next().expect("No underscores"),
+          ))
+        }
+        Rule::comment => comment = Some(format!(" {}", pair.as_str())),
+        _ => unreachable!(),
+      }
+    }
+
+    EnumCaseTy {
+      enum_name: enum_name.unwrap(),
+      comment,
+    }
+  }
+}
+
+impl WriteTo for EnumCaseTy {
+  fn write_to<W: Write>(&self, w: &mut W) -> Result<(), io::Error> {
+    write!(
+      w,
+      "  {},{}",
+      self.enum_name,
+      self.comment.as_ref().map(|s| s.as_str()).unwrap_or("\n")
+    )?;
+    Ok(())
+  }
+}
+
+struct EnumTy {
+  ident: String,
+  cases: Vec<EnumCaseTy>,
+}
+
+impl<'a> From<Pair<'a, Rule>> for EnumTy {
+  fn from(pair: Pair<'a, Rule>) -> Self {
+    let mut parts = pair.into_inner();
+    let mut ident: Option<String> = None;
+    let mut cases: Vec<EnumCaseTy> = vec![];
+    while let Some(pair) = parts.next() {
+      match pair.as_rule() {
+        Rule::ident => ident = Some(pair.as_str().into()),
+        Rule::enum_case => cases.push(pair.into()),
+        _ => unreachable!(),
+      }
+    }
+
+    EnumTy {
+      ident: ident.expect("Couldn't find name for variant"),
+      cases,
+    }
+  }
+}
+
+impl WriteTo for EnumTy {
+  fn write_to<W: Write>(&self, w: &mut W) -> Result<(), io::Error> {
+    write!(w, "enum {} {{\n", self.ident)?;
+    for case in self.cases.iter() {
+      case.write_to(w)?;
+    }
+    write!(w, "}}")?;
+    Ok(())
+  }
+}
+
 fn convert_enum<W>(w: &mut W, p: Pair<Rule>) -> Result<(), Box<dyn Error>>
 where
   W: Write,
 {
   assert_eq!(p.as_rule(), Rule::enum_ty);
   // This is actually already a rust enum!
-  write!(w, "{}", p.as_str())?;
+  let ty: EnumTy = p.into();
+  ty.write_to(w);
+
+  // write!(w, "{}", p.as_str())?;
   Ok(())
 }
 
@@ -476,11 +543,11 @@ mod tests {
   EPHEMERAL_4 // Force all messages to be exploding.
 }"#,
       "enum RetentionPolicyType {
-  NONE_0,
-  RETAIN_1, // Keep messages forever
-  EXPIRE_2, // Delete after a while
-  INHERIT_3, // Use the team's policy
-  EPHEMERAL_4 // Force all messages to be exploding.
+  None,
+  Retain, // Keep messages forever
+  Expire, // Delete after a while
+  Inherit, // Use the team's policy
+  Ephemeral, // Force all messages to be exploding.
 }",
     )
     .unwrap();
