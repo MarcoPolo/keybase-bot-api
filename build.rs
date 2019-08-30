@@ -31,8 +31,8 @@ fn map_to_output_file(input: &PathBuf) -> PathBuf {
   let file_name = input.file_name().unwrap();
     let original_path = input.as_path().iter().skip_while(|part| {
       part != &OsStr::new("keybase-protocol")
-    }).collect::<Vec<&OsStr>>();
-    let mut output_path = Path::new("src/").to_path_buf();
+    }).skip(1).collect::<Vec<&OsStr>>();
+    let mut output_path = Path::new("src/keybase_protocol/").to_path_buf();
     for part in original_path.iter() {
       output_path.push(part);
     }
