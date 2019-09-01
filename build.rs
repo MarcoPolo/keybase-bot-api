@@ -20,7 +20,7 @@ fn visit_dirs<F>(dir: &Path, cb: &F) -> Result<(), Box<dyn Error>> where F: Fn(&
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
-                cb(&entry);
+                cb(&entry)?;
                 visit_dirs(&path, cb)?;
             } else {
                 cb(&entry)?;
@@ -46,13 +46,14 @@ fn map_to_output_file(input: &PathBuf) -> PathBuf {
 }
 
 fn create_mod_file(path: &PathBuf) -> Result<(), Box<dyn Error>> {
+  println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
   let inner_files = fs::read_dir(path).unwrap();
   let inner_files: Vec<String> = inner_files.map(|f| {
     let file_name = f.unwrap().file_name();
-    let file_name = format!("pub mod {};", file_name.to_str().unwrap());
-    file_name.replace(".avdl", "")
+    let file_name_str = file_name.to_str().unwrap();
+    let mod_use = format!("pub mod {};\npub use {}::*;", file_name_str, file_name_str);
+    mod_use.replace(".avdl", "")
   }).collect();
-  println!("Inner files {}", inner_files.join("\n"));
   let mut output_filename = Path::new(path).to_path_buf();
   output_filename.push("mod.rs");
   let output_filename = map_to_output_file(&output_filename);
@@ -68,12 +69,10 @@ fn main() {
   visit_dirs(Path::new("keybase-protocol/"), &|entry: &DirEntry| -> Result<(), Box<dyn Error>> {
     let entry_path = entry.path();
     if entry_path.is_dir() {
-      create_mod_file(&entry_path);
+      create_mod_file(&entry_path).unwrap();
     } else {
-      return Ok(());
       let output_path = map_to_output_file(&entry_path);
       fs::create_dir_all(output_path.parent().unwrap())?;
-      println!("Output Path: {:?}", output_path);
       create_rust_version(entry.path().to_str().unwrap(), output_path.to_str().unwrap())?;
     }
     Ok(())
