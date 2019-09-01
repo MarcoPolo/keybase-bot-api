@@ -1,4 +1,4 @@
 /target
 **/*.rs.bk
 Cargo.lock
-src/keybase_protocol/**/**.rs
+src/protocol/**/**.rs

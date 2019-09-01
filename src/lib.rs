@@ -1,3 +1,4 @@
+pub mod keybase_protocol;
 pub mod which_keybase {
     use std::process::Command;
     pub fn which_keybase() -> String {
