@@ -3,6 +3,8 @@ use avdl_parser::{Rule, AVDLParser, to_rust::build_rust_code_from_avdl};
 use std::fs::{self, File, DirEntry};
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::ffi::{OsStr};
+use std::io::Write;
 
 fn create_rust_version(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
   let input = fs::read_to_string(input_path)?;
@@ -18,6 +20,7 @@ fn visit_dirs<F>(dir: &Path, cb: &F) -> Result<(), Box<dyn Error>> where F: Fn(&
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
+                cb(&entry);
                 visit_dirs(&path, cb)?;
             } else {
                 cb(&entry)?;
@@ -42,14 +45,37 @@ fn map_to_output_file(input: &PathBuf) -> PathBuf {
     output_path
 }
 
-use std::ffi::OsStr;
+fn create_mod_file(path: &PathBuf) -> Result<(), Box<dyn Error>> {
+  let inner_files = fs::read_dir(path).unwrap();
+  let inner_files: Vec<String> = inner_files.map(|f| {
+    let file_name = f.unwrap().file_name();
+    let file_name = format!("pub mod {};", file_name.to_str().unwrap());
+    file_name.replace(".avdl", "")
+  }).collect();
+  println!("Inner files {}", inner_files.join("\n"));
+  let mut output_filename = Path::new(path).to_path_buf();
+  output_filename.push("mod.rs");
+  let output_filename = map_to_output_file(&output_filename);
+  let mut file = File::create(output_filename)?;
+  write!(&mut file, "{}", inner_files.join("\n"))?;
+
+
+  Ok(())
+}
+
 fn main() {
+  create_mod_file(&Path::new("keybase-protocol/").to_path_buf()).unwrap();
   visit_dirs(Path::new("keybase-protocol/"), &|entry: &DirEntry| -> Result<(), Box<dyn Error>> {
     let entry_path = entry.path();
-    let output_path = map_to_output_file(&entry_path);
-    fs::create_dir_all(output_path.parent().unwrap())?;
-    println!("Output Path: {:?}", output_path);
-    create_rust_version(entry.path().to_str().unwrap(), output_path.to_str().unwrap())?;
+    if entry_path.is_dir() {
+      create_mod_file(&entry_path);
+    } else {
+      return Ok(());
+      let output_path = map_to_output_file(&entry_path);
+      fs::create_dir_all(output_path.parent().unwrap())?;
+      println!("Output Path: {:?}", output_path);
+      create_rust_version(entry.path().to_str().unwrap(), output_path.to_str().unwrap())?;
+    }
     Ok(())
   }).unwrap();
 }
