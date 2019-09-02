@@ -1,9 +1,0 @@
-@namespace("keybase.1")
-protocol kbfsMount {
-    @lint("ignore")
-    string GetCurrentMountDir();
-    @lint("ignore")
-    array<string> GetAllAvailableMountDirs();
-    @lint("ignore")
-    void SetCurrentMountDir(string dir);
-}
