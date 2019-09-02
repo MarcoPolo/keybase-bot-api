@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::{fmt, io};
-pub mod protocol;
 pub mod keybase_cmd {
     use std::io::{self, Write};
     use std::process::{Command, Stdio};
@@ -74,7 +73,7 @@ impl From<std::io::Error> for ApiError {
 pub mod chat {
     use super::ApiError;
     use crate::keybase_cmd::call_chat_api;
-    // use crate::protocol::chat1::api;
+    use rusty_keybase_protocol::chat1::api;
     use serde::{Deserialize, Serialize};
     use serde_json;
     // use std::io::Error as IOError;

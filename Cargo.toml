@@ -8,10 +8,6 @@ edition = "2018"
 
 [dependencies]
 pest = "2.1.1"
-avdl-parser = { path = "../avdl-parser" }
+rusty-keybase-protocol = { path = "../rusty-keybase-protocol" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-
-[build-dependencies]
-pest = "2.1.1"
-avdl-parser = { path = "../avdl-parser" }
