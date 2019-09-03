@@ -1,10 +1,26 @@
+pub mod chat;
+use futures::channel::mpsc;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::{fmt, io};
+
 pub mod keybase_cmd {
-    use std::io::{self, Write};
+    use super::{ApiError, KBError};
+    use futures::{channel::mpsc, stream::Stream};
+    use serde::{de::DeserializeOwned, Deserialize, Serialize};
+    use serde_json;
+    use std::io::{self, BufRead, BufReader, Write};
     use std::process::{Command, Stdio};
+    use std::thread;
+
     thread_local! {
         pub static KEYBASE: String = which_keybase();
+    }
+
+    #[derive(Deserialize, Serialize)]
+    pub struct APIResult<T> {
+        pub result: T,
+        pub error: Option<KBError>,
     }
 
     pub fn which_keybase() -> String {
@@ -19,7 +35,10 @@ pub mod keybase_cmd {
         String::from(path.trim())
     }
 
-    pub fn call_chat_api(input: &[u8]) -> Result<Vec<u8>, io::Error> {
+    pub fn call_chat_api<T>(input: &[u8]) -> Result<T, ApiError>
+    where
+        T: DeserializeOwned,
+    {
         let mut child = KEYBASE.with(|kb| {
             Command::new(kb)
                 .arg("chat")
@@ -33,13 +52,59 @@ pub mod keybase_cmd {
             stdin.write_all(input)?;
             let output = child.wait_with_output()?;
             if !output.status.success() {
-                println!("Keybase did not return successful exit code");
-                return Err(io::ErrorKind::InvalidInput.into());
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "Keybase did not return successful exit code",
+                )
+                .into());
             }
 
-            Ok(output.stdout)
+            let output = String::from_utf8(output.stdout)?;
+            println!("Output {}", output);
+            let res: APIResult<T> = serde_json::from_str(&output)?;
+            if let Some(error) = res.error {
+                Err(ApiError::KBErr(error))
+            } else {
+                Ok(res.result)
+            }
         } else {
-            Err(io::ErrorKind::BrokenPipe.into())
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "Couldn't get stdin").into())
+        }
+    }
+
+    pub fn listen_chat_api<T>() -> Result<impl Stream<Item = T>, ApiError>
+    where
+        T: DeserializeOwned + Send + 'static,
+    {
+        let mut child = KEYBASE.with(|kb| {
+            Command::new(kb)
+                .arg("chat")
+                .arg("api-listen")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()
+                .expect("Couldn't run `keybase`")
+        });
+        if let Some(stdout) = child.stdout.take() {
+            let (mut sender, receiver) = mpsc::channel::<T>(128);
+            let _handler: thread::JoinHandle<Result<(), ApiError>> = thread::spawn(move || {
+                let mut reader = BufReader::new(stdout);
+                loop {
+                    let mut line = String::new();
+                    let _bytes_written = reader.read_line(&mut line)?;
+                    let res: APIResult<T> = serde_json::from_str(&line)?;
+                    if let Some(error) = res.error {
+                        let err = ApiError::KBErr(error);
+                        println!("Error in listening: {:?}", &err);
+                        return Err(err);
+                    } else {
+                        sender.start_send(res.result)?;
+                    }
+                }
+            });
+            Ok(receiver)
+        } else {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "Couldn't get stdout").into())
         }
     }
 }
@@ -48,6 +113,15 @@ pub mod keybase_cmd {
 pub enum ApiError {
     Parsing(serde_json::error::Error),
     IOErr(io::Error),
+    KBErr(KBError),
+    UTF8Err(std::string::FromUtf8Error),
+    ChannelErr(mpsc::SendError),
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct KBError {
+    pub code: i32,
+    pub message: String,
 }
 
 impl fmt::Display for ApiError {
@@ -58,6 +132,18 @@ impl fmt::Display for ApiError {
 
 impl Error for ApiError {}
 
+impl From<mpsc::SendError> for ApiError {
+    fn from(error: mpsc::SendError) -> Self {
+        ApiError::ChannelErr(error)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for ApiError {
+    fn from(error: std::string::FromUtf8Error) -> Self {
+        ApiError::UTF8Err(error)
+    }
+}
+
 impl From<serde_json::error::Error> for ApiError {
     fn from(error: serde_json::error::Error) -> Self {
         ApiError::Parsing(error)
@@ -67,35 +153,6 @@ impl From<serde_json::error::Error> for ApiError {
 impl From<std::io::Error> for ApiError {
     fn from(error: std::io::Error) -> Self {
         ApiError::IOErr(error)
-    }
-}
-
-pub mod chat {
-    use super::ApiError;
-    use crate::keybase_cmd::call_chat_api;
-    use rusty_keybase_protocol::chat1::api;
-    use serde::{Deserialize, Serialize};
-    use serde_json;
-    // use std::io::Error as IOError;
-
-    #[derive(Serialize, Deserialize, Debug)]
-    struct List {
-        method: &'static str,
-    }
-
-    const LISTMETHOD: List = List { method: "list" };
-
-
-
-    pub fn list() -> Result<String, ApiError> {
-        // let input: Vec<u8>
-        // call_chat_api()
-        let input = serde_json::to_vec(&LISTMETHOD)?;
-        let output = call_chat_api(&input)?;
-        let output = String::from_utf8(output).unwrap();
-        println!("Output is {:?}", output);
-        serde_json::from_str(&output)?;
-        panic!()
     }
 }
 
