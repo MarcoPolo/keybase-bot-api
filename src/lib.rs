@@ -72,7 +72,13 @@ pub mod keybase_cmd {
         }
     }
 
-    pub fn listen_chat_api<T>() -> Result<impl Stream<Item = T>, ApiError>
+    pub fn listen_chat_api<T>() -> Result<
+        (
+            impl Stream<Item = T>,
+            thread::JoinHandle<Result<(), ApiError>>,
+        ),
+        ApiError,
+    >
     where
         T: DeserializeOwned + Send + 'static,
     {
@@ -87,22 +93,25 @@ pub mod keybase_cmd {
         });
         if let Some(stdout) = child.stdout.take() {
             let (mut sender, receiver) = mpsc::channel::<T>(128);
-            let _handler: thread::JoinHandle<Result<(), ApiError>> = thread::spawn(move || {
+            let handler: thread::JoinHandle<Result<(), ApiError>> = thread::spawn(move || {
                 let mut reader = BufReader::new(stdout);
                 loop {
                     let mut line = String::new();
                     let _bytes_written = reader.read_line(&mut line)?;
-                    let res: APIResult<T> = serde_json::from_str(&line)?;
-                    if let Some(error) = res.error {
-                        let err = ApiError::KBErr(error);
-                        println!("Error in listening: {:?}", &err);
-                        return Err(err);
-                    } else {
-                        sender.start_send(res.result)?;
-                    }
+                    println!("got notif: {:?}", line);
+                    let res: T = serde_json::from_str(&line)?;
+                        sender.start_send(res)?;
+                    // if let Some(error) = res.error {
+                    //     let err = ApiError::KBErr(error);
+                    //     println!("Error in listening: {:?}", &err);
+                    //     return Err(err);
+                    // } else {
+                    //     println!("got notif: {:?}", line);
+                    //     sender.start_send(res)?;
+                    // }
                 }
             });
-            Ok(receiver)
+            Ok((receiver, handler))
         } else {
             Err(io::Error::new(io::ErrorKind::BrokenPipe, "Couldn't get stdout").into())
         }
