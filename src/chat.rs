@@ -6,8 +6,8 @@ use futures::{
   future,
   stream::{self, StreamExt},
 };
-use rusty_keybase_protocol::chat1::api;
-use rusty_keybase_protocol::stellar1;
+use keybase_protocol::chat1::api;
+use keybase_protocol::stellar1;
 use serde::{Deserialize, Serialize};
 use serde_json;
 // use std::io::Error as IOError;

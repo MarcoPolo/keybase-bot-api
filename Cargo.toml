@@ -1,12 +1,15 @@
 [package]
-name = "rusty-keybase-bot"
+name = "keybase-bot-api"
 version = "0.1.0"
 authors = ["Marco Munizaga <marco@marcopolo.io>"]
 edition = "2018"
+description = "Write bots for Keybase"
+repository = "https://github.com/MarcoPolo/avdl-serde-code-generator"
+license = "Apache-2.0 OR MIT"
 
 [dependencies]
 pest = "2.1.1"
-rusty-keybase-protocol = { path = "../rusty-keybase-protocol" }
+keybase-protocol = { path = "../rusty-keybase-protocol" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 futures-preview = "0.3.0-alpha.18"
