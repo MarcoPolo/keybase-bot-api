@@ -1,4 +1,4 @@
-use rusty_keybase_bot::chat;
+use keybase_bot_api::chat;
 fn main() {
   let mut convs = chat::list().expect("Couldn't make an API call");
   convs

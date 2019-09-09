@@ -1,11 +1,14 @@
-use rusty_keybase_bot::chat;
+use keybase_bot_api::chat;
 
 fn main() {
+  let my_username = "marcopolo";
   let channel = chat::ChannelParams {
-    name: "marcopolo,pkt0".into(),
+    name: format!("{},{}", my_username, "kb_monbot"),
     ..Default::default()
   };
-  let msg = "Hello there";
+  let msg = "Hello World";
 
-  let _ = chat::send_msg(&channel, &msg).unwrap();
+  if let Err(e) = chat::send_msg(&channel, &msg) {
+    println!("Failed to send message: {:?}", e);
+  }
 }
