@@ -14,7 +14,7 @@ pub struct Bot {
   pub username: String,
   pub keybase_path: PathBuf,
   pub home_dir: PathBuf,
-  _service_process: process::Child,
+  service_process: process::Child,
   pub listen_threads: Vec<JoinHandle<Result<(), ApiError>>>,
 }
 
@@ -89,18 +89,28 @@ impl Bot {
     fs::copy(keybase_cmd::which_keybase(), &keybase_path)?;
 
     // Start KB service
-    let _service_process = start_service(&keybase_path, &working_dir)?;
+    let mut service_process = start_service(&keybase_path, &working_dir)?;
 
     // Login
-    keybase_cmd::login_oneshot(&keybase_path, &working_dir, &username, &paperkey)?;
+    if let Err(e) = keybase_cmd::login_oneshot(&keybase_path, &working_dir, &username, &paperkey) {
+      println!("Login failed");
+      service_process.kill()?;
+      return Err(e.into())
+    }
 
     Ok(Bot {
       username,
       keybase_path,
       home_dir: working_dir,
-      _service_process,
+      service_process,
       listen_threads: vec![],
     })
+  }
+}
+
+impl Drop for Bot {
+  fn drop(&mut self) {
+    self.service_process.kill().expect("Failed to stop Keybase service");
   }
 }
 

@@ -3,9 +3,9 @@ pub mod chat;
 pub mod status;
 pub use bot::Bot;
 pub use chat::Chat;
-pub use status::Status;
 use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
+pub use status::Status;
 use std::error::Error;
 use std::{fmt, io};
 
@@ -25,7 +25,7 @@ pub(crate) mod keybase_cmd {
 
     #[derive(Deserialize, Serialize)]
     pub struct APIResult<T> {
-        pub result: T,
+        pub result: Option<T>,
         pub error: Option<KBError>,
     }
 
@@ -102,7 +102,7 @@ pub(crate) mod keybase_cmd {
             if let Some(error) = res.error {
                 Err(ApiError::KBErr(error))
             } else {
-                Ok(res.result)
+                Ok(res.result.expect("Missing result from api call"))
             }
         } else {
             Err(io::Error::new(io::ErrorKind::BrokenPipe, "Couldn't get stdin").into())
@@ -120,6 +120,17 @@ pub(crate) mod keybase_cmd {
             stdin.write_all(paperkey.as_bytes())?;
             let output = child.wait_with_output()?;
             if !output.status.success() {
+                println!(
+                    "err in login: {:?} home_dir: {:?} exitCode: {:?} stdout:{:?} stderr:{:?}",
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Keybase did not return successful exit code",
+                    ),
+                    home_dir,
+                    output.status.code(),
+                    String::from_utf8(output.stdout),
+                    String::from_utf8(output.stderr)
+                );
                 Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
                     "Keybase did not return successful exit code",
