@@ -1,21 +1,26 @@
+pub mod bot;
 pub mod chat;
 pub mod status;
+pub use bot::Bot;
+pub use chat::Chat;
+pub use status::Status;
 use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::{fmt, io};
 
-pub mod keybase_cmd {
+pub(crate) mod keybase_cmd {
     use super::{ApiError, KBError};
     use futures::{channel::mpsc, stream::Stream};
     use serde::{de::DeserializeOwned, Deserialize, Serialize};
     use serde_json;
     use std::io::{self, BufRead, BufReader, Write};
-    use std::process::{Command, Stdio};
+    use std::path::{Path, PathBuf};
+    use std::process::{Child, Command, Stdio};
     use std::thread;
 
     thread_local! {
-        pub static KEYBASE: String = which_keybase();
+        pub static KEYBASE: PathBuf = which_keybase();
     }
 
     #[derive(Deserialize, Serialize)]
@@ -24,7 +29,7 @@ pub mod keybase_cmd {
         pub error: Option<KBError>,
     }
 
-    pub fn which_keybase() -> String {
+    pub fn which_keybase() -> PathBuf {
         let path = String::from_utf8(
             Command::new("which")
                 .arg("keybase")
@@ -33,7 +38,7 @@ pub mod keybase_cmd {
                 .stdout,
         )
         .expect("Output not in UTF-8");
-        String::from(path.trim())
+        Path::new(path.trim()).to_path_buf()
     }
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -42,16 +47,8 @@ pub mod keybase_cmd {
         pub username: String,
     }
 
-    pub fn call_status() -> Result<StatusRes, ApiError> {
-        let child = KEYBASE.with(|kb| {
-            Command::new(kb)
-                .arg("status")
-                .arg("-j")
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()
-                .expect("Couldn't run `keybase`")
-        });
+    pub fn call_status(keybase_path: &Path, home_dir: &Path) -> Result<StatusRes, ApiError> {
+        let child = keybase_exec(keybase_path, home_dir, &["status", "-j"])?;
         let output = child.wait_with_output()?;
         if !output.status.success() {
             return Err(io::Error::new(
@@ -66,19 +63,29 @@ pub mod keybase_cmd {
         Ok(res)
     }
 
-    pub fn call_chat_api<T>(input: &[u8]) -> Result<T, ApiError>
+    fn keybase_exec<I, S>(keybase_path: &Path, home_dir: &Path, args: I) -> Result<Child, io::Error>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<std::ffi::OsStr>,
+    {
+        Command::new(keybase_path)
+            .arg("--home")
+            .arg(home_dir.to_str().unwrap())
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+    }
+
+    pub fn call_chat_api<T>(
+        keybase_path: &Path,
+        home_dir: &Path,
+        input: &[u8],
+    ) -> Result<T, ApiError>
     where
         T: DeserializeOwned,
     {
-        let mut child = KEYBASE.with(|kb| {
-            Command::new(kb)
-                .arg("chat")
-                .arg("api")
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()
-                .expect("Couldn't run `keybase`")
-        });
+        let mut child = keybase_exec(keybase_path, home_dir, &["chat", "api"])?;
         if let Some(stdin) = child.stdin.as_mut() {
             stdin.write_all(input)?;
             let output = child.wait_with_output()?;
@@ -102,7 +109,34 @@ pub mod keybase_cmd {
         }
     }
 
-    pub fn listen_chat_api<T>() -> Result<
+    pub fn login_oneshot(
+        keybase_path: &Path,
+        home_dir: &Path,
+        username: &str,
+        paperkey: &str,
+    ) -> Result<(), ApiError> {
+        let mut child = keybase_exec(keybase_path, home_dir, &["oneshot", "--username", username])?;
+        if let Some(stdin) = child.stdin.as_mut() {
+            stdin.write_all(paperkey.as_bytes())?;
+            let output = child.wait_with_output()?;
+            if !output.status.success() {
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "Keybase did not return successful exit code",
+                )
+                .into())
+            } else {
+                Ok(())
+            }
+        } else {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "Couldn't get stdin").into())
+        }
+    }
+
+    pub fn listen_chat_api<T>(
+        keybase_path: &Path,
+        home_dir: &Path,
+    ) -> Result<
         (
             impl Stream<Item = T>,
             thread::JoinHandle<Result<(), ApiError>>,
@@ -112,15 +146,8 @@ pub mod keybase_cmd {
     where
         T: DeserializeOwned + Send + 'static,
     {
-        let mut child = KEYBASE.with(|kb| {
-            Command::new(kb)
-                .arg("chat")
-                .arg("api-listen")
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()
-                .expect("Couldn't run `keybase`")
-        });
+        let mut child = keybase_exec(keybase_path, home_dir, &["chat", "api-listen"])?;
+
         if let Some(stdout) = child.stdout.take() {
             let (mut sender, receiver) = mpsc::channel::<T>(128);
             let handler: thread::JoinHandle<Result<(), ApiError>> = thread::spawn(move || {
@@ -128,17 +155,8 @@ pub mod keybase_cmd {
                 loop {
                     let mut line = String::new();
                     let _bytes_written = reader.read_line(&mut line)?;
-                    println!("got notif: {:?}", line);
                     let res: T = serde_json::from_str(&line)?;
                     sender.start_send(res)?;
-                    // if let Some(error) = res.error {
-                    //     let err = ApiError::KBErr(error);
-                    //     println!("Error in listening: {:?}", &err);
-                    //     return Err(err);
-                    // } else {
-                    //     println!("got notif: {:?}", line);
-                    //     sender.start_send(res)?;
-                    // }
                 }
             });
             Ok((receiver, handler))
@@ -203,12 +221,12 @@ mod tests {
 
     #[test]
     fn can_find_keybase() {
-        println!("Keybase is at: {}", which_keybase());
-        assert!(!which_keybase().is_empty());
+        println!("Keybase is at: {:?}", which_keybase());
+        assert!(!which_keybase().to_str().unwrap().is_empty());
     }
 
     #[test]
     fn ls_inbox() {
-        list().unwrap();
+        // list().unwrap();
     }
 }

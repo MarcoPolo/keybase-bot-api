@@ -1,6 +1,7 @@
-use super::ApiError;
+use crate::bot::Bot;
 use crate::keybase_cmd::{call_chat_api, listen_chat_api};
-use futures::{executor::block_on, future, stream::StreamExt};
+use crate::ApiError;
+use futures::stream::{Stream, StreamExt, BoxStream};
 use keybase_protocol::chat1::api;
 use keybase_protocol::stellar1;
 use serde::{Deserialize, Serialize};
@@ -42,45 +43,15 @@ pub struct ListResult {
   pub conversations: Vec<api::ConvSummary>,
 }
 
-//List inbox
-pub fn list() -> Result<ListResult, ApiError> {
-  let input = serde_json::to_vec(&LISTMETHOD)?;
-  call_chat_api::<ListResult>(&input)
-}
-
-// Read a conversation:
-//     {"method": "read", "params": {"options": {"channel": {"name": "you,them"}}}}
-
-pub fn read_conv(channel: &ChannelParams) -> Result<api::Thread, ApiError> {
-  let input: ReadConv = APIRPC {
-    method: "read",
-    params: Some(OptionsOnly {
-      options: ReadConvParams { channel },
-    }),
-  };
-  println!("opts: {}", &serde_json::to_string(&input)?);
-  call_chat_api::<api::Thread>(&serde_json::to_vec(&input)?)
-}
-
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "type")]
-enum Notification {
+pub enum Notification {
   #[serde(rename = "chat")]
   Chat(api::MsgNotification),
   #[serde(rename = "wallet")]
   Wallet {
     notification: stellar1::PaymentDetailsLocal,
   },
-}
-
-pub fn listen() -> Result<(), ApiError> {
-  let (notif_stream, handler) = listen_chat_api::<Notification>()?;
-  let fut = notif_stream.for_each(|notif| {
-    println!("Got notif: {:?}", notif);
-    future::ready(())
-  });
-  block_on(fut);
-  handler.join().unwrap()
 }
 
 #[derive(Serialize, Debug)]
@@ -95,14 +66,69 @@ struct SendMessageOptions<'a> {
 }
 type SendTextRPC<'a> = APIRPC<OptionsOnly<SendMessageOptions<'a>>>;
 
-pub fn send_msg<'a>(channel: &'a ChannelParams, msg: &'a str) -> Result<api::SendRes, ApiError> {
-  let options = SendMessageOptions {
-    channel,
-    message: MessageOptions { body: msg },
-  };
-  let input: SendTextRPC = APIRPC {
-    method: "send",
-    params: Some(OptionsOnly { options }),
-  };
-  call_chat_api::<api::SendRes>(&serde_json::to_vec(&input)?)
+pub trait Chat {
+  fn send_msg<'a>(
+    &self,
+    channel: &'a ChannelParams,
+    msg: &'a str,
+  ) -> Result<api::SendRes, ApiError>;
+  fn listen(&mut self) -> Result<BoxStream<Notification>, ApiError>;
+  fn list(&self) -> Result<ListResult, ApiError>;
+  fn read_conv(&self, channel: &ChannelParams) -> Result<api::Thread, ApiError>;
+}
+
+impl Chat for Bot {
+  fn send_msg<'a>(
+    &self,
+    channel: &'a ChannelParams,
+    msg: &'a str,
+  ) -> Result<api::SendRes, ApiError> {
+    let options = SendMessageOptions {
+      channel,
+      message: MessageOptions { body: msg },
+    };
+    let input: SendTextRPC = APIRPC {
+      method: "send",
+      params: Some(OptionsOnly { options }),
+    };
+    call_chat_api::<api::SendRes>(
+      self.keybase_path.as_path(),
+      self.home_dir.as_path(),
+      &serde_json::to_vec(&input)?,
+    )
+  }
+
+  fn listen(&mut self) -> Result<BoxStream<Notification>, ApiError> {
+    let (notif_stream, handle) =
+      listen_chat_api::<Notification>(self.keybase_path.as_path(), self.home_dir.as_path())?;
+    self.listen_threads.push(handle);
+    Ok(notif_stream.boxed())
+    // let fut = notif_stream.for_each(|notif| {
+    //   println!("Got notif: {:?}", notif);
+    //   future::ready(())
+    // });
+
+    // block_on(fut);
+    // handler.join().unwrap()
+  }
+
+  fn list(&self) -> Result<ListResult, ApiError> {
+    let input = serde_json::to_vec(&LISTMETHOD)?;
+    call_chat_api::<ListResult>(self.keybase_path.as_path(), self.home_dir.as_path(), &input)
+  }
+
+  fn read_conv(&self, channel: &ChannelParams) -> Result<api::Thread, ApiError> {
+    let input: ReadConv = APIRPC {
+      method: "read",
+      params: Some(OptionsOnly {
+        options: ReadConvParams { channel },
+      }),
+    };
+    println!("opts: {}", &serde_json::to_string(&input)?);
+    call_chat_api::<api::Thread>(
+      self.keybase_path.as_path(),
+      self.home_dir.as_path(),
+      &serde_json::to_vec(&input)?,
+    )
+  }
 }

@@ -1,5 +1,8 @@
-use keybase_bot_api::status;
-
+use keybase_bot_api::{Bot, Status};
 fn main() {
-  println!("Username is: {:?}", status::status().unwrap().username);
+  let bot = Bot::new(
+    "pkt0",
+    option_env!("PAPERKEY").expect("Missing PAPERKEY env"),
+  ).unwrap();
+  println!("Username is: {:?}", bot.status().unwrap().username);
 }

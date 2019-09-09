@@ -1,6 +1,11 @@
-use keybase_bot_api::chat;
+use keybase_bot_api::{Chat, Bot};
 fn main() {
-  let mut convs = chat::list().expect("Couldn't make an API call");
+  let bot = Bot::new(
+    "pkt0",
+    option_env!("PAPERKEY").expect("Missing PAPERKEY env")
+  )
+  .unwrap();
+  let mut convs = bot.list().expect("Couldn't make an API call");
   convs
       .conversations
       .sort_unstable_by(|a, b| b.activeAt.cmp(&a.activeAt));
