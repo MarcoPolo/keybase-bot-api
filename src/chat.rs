@@ -1,7 +1,7 @@
 use crate::bot::Bot;
 use crate::keybase_cmd::{call_chat_api, listen_chat_api};
 use crate::ApiError;
-use futures::stream::{Stream, StreamExt, BoxStream};
+use futures::stream::{BoxStream, StreamExt};
 use keybase_protocol::chat1::api;
 use keybase_protocol::stellar1;
 use serde::{Deserialize, Serialize};
