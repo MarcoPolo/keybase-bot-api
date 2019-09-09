@@ -9,10 +9,13 @@ fn main() {
       .into_iter()
       .take(20)
       .map(|conv| {
-          if !conv.channel.topicName.is_empty() {
-              format!("{}#{}", conv.channel.name, conv.channel.topicName)
+          let channel = conv.channel.unwrap();
+          let topic_name  = channel.topicName.unwrap();
+          let channel_name = channel.name.unwrap();
+          if !topic_name.is_empty() {
+              format!("{}#{}", channel_name, topic_name)
           } else {
-              format!("{}", conv.channel.name)
+              format!("{}", channel_name)
           }
       })
       .collect();
