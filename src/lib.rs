@@ -1,4 +1,5 @@
 pub mod chat;
+pub mod status;
 use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -33,6 +34,36 @@ pub mod keybase_cmd {
         )
         .expect("Output not in UTF-8");
         String::from(path.trim())
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct StatusRes {
+        #[serde(rename = "Username")]
+        pub username: String,
+    }
+
+    pub fn call_status() -> Result<StatusRes, ApiError> {
+        let child = KEYBASE.with(|kb| {
+            Command::new(kb)
+                .arg("status")
+                .arg("-j")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()
+                .expect("Couldn't run `keybase`")
+        });
+        let output = child.wait_with_output()?;
+        if !output.status.success() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Keybase did not return successful exit code",
+            )
+            .into());
+        }
+
+        let output = String::from_utf8(output.stdout)?;
+        let res: StatusRes = serde_json::from_str(&output)?;
+        Ok(res)
     }
 
     pub fn call_chat_api<T>(input: &[u8]) -> Result<T, ApiError>

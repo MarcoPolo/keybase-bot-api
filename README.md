@@ -12,11 +12,12 @@ Make sure to [install Keybase](https://keybase.io/download).
 
 ```rust
 use keybase_bot_api::chat;
+use keybase_bot_api::status::status;
 
 fn main() {
-  let my_username = "marcopolo";
+  let status = status().unwrap();
   let channel = chat::ChannelParams {
-    name: format!("{},{}", my_username, "kb_monbot"),
+    name: format!("{},{}", status.username, "kb_monbot"),
     ..Default::default()
   };
   let msg = "Hello World";
