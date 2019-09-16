@@ -103,13 +103,6 @@ impl Chat for Bot {
       listen_chat_api::<Notification>(self.keybase_path.as_path(), self.home_dir.as_path())?;
     self.listen_threads.push(handle);
     Ok(notif_stream.boxed())
-    // let fut = notif_stream.for_each(|notif| {
-    //   println!("Got notif: {:?}", notif);
-    //   future::ready(())
-    // });
-
-    // block_on(fut);
-    // handler.join().unwrap()
   }
 
   fn list(&self) -> Result<ListResult, ApiError> {
