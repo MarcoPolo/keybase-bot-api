@@ -1,7 +1,7 @@
 use crate::bot::Bot;
 use crate::keybase_cmd::{call_chat_api, listen_chat_api};
 use crate::ApiError;
-use futures::stream::{BoxStream, StreamExt};
+use futures::channel::mpsc;
 use keybase_protocol::chat1::api;
 use keybase_protocol::stellar1;
 use serde::{Deserialize, Serialize};
@@ -72,7 +72,7 @@ pub trait Chat {
     channel: &'a ChannelParams,
     msg: &'a str,
   ) -> Result<api::SendRes, ApiError>;
-  fn listen(&mut self) -> Result<BoxStream<Notification>, ApiError>;
+  fn listen(&mut self) -> Result<mpsc::Receiver<Notification>, ApiError>;
   fn list(&self) -> Result<ListResult, ApiError>;
   fn read_conv(&self, channel: &ChannelParams) -> Result<api::Thread, ApiError>;
 }
@@ -98,11 +98,11 @@ impl Chat for Bot {
     )
   }
 
-  fn listen(&mut self) -> Result<BoxStream<Notification>, ApiError> {
+  fn listen(&mut self) -> Result<mpsc::Receiver<Notification>, ApiError> {
     let (notif_stream, handle) =
       listen_chat_api::<Notification>(self.keybase_path.as_path(), self.home_dir.as_path())?;
     self.listen_threads.push(handle);
-    Ok(notif_stream.boxed())
+    Ok(notif_stream)
   }
 
   fn list(&self) -> Result<ListResult, ApiError> {

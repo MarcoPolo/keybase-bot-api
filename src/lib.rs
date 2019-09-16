@@ -11,7 +11,7 @@ use std::{fmt, io};
 
 pub(crate) mod keybase_cmd {
     use super::{ApiError, KBError};
-    use futures::{channel::mpsc, stream::Stream};
+    use futures::channel::mpsc;
     use serde::{de::DeserializeOwned, Deserialize, Serialize};
     use serde_json;
     use std::io::{self, BufRead, BufReader, Write};
@@ -147,13 +147,7 @@ pub(crate) mod keybase_cmd {
     pub fn listen_chat_api<T>(
         keybase_path: &Path,
         home_dir: &Path,
-    ) -> Result<
-        (
-            impl Stream<Item = T>,
-            thread::JoinHandle<Result<(), ApiError>>,
-        ),
-        ApiError,
-    >
+    ) -> Result<(mpsc::Receiver<T>, thread::JoinHandle<Result<(), ApiError>>), ApiError>
     where
         T: DeserializeOwned + Send + 'static,
     {
