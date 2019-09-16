@@ -1,6 +1,6 @@
 [package]
 name = "keybase-bot-api"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Marco Munizaga <marco@marcopolo.io>"]
 edition = "2018"
 description = "Write bots for Keybase"
