@@ -2,7 +2,7 @@ use keybase_bot_api::{Bot, Chat};
 fn main() {
     let bot = Bot::new(
         "pkt0",
-        option_env!("PAPERKEY").expect("Missing PAPERKEY env"),
+        option_env!("KEYBASE_PAPERKEY").expect("Missing KEYBASE_PAPERKEY env"),
     )
     .unwrap();
     let mut convs = bot.list().expect("Couldn't make an API call");

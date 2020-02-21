@@ -1,5 +1,6 @@
 use super::ApiError;
 use crate::keybase_cmd;
+use async_std::task::JoinHandle;
 use hex;
 use rand::prelude::*;
 use std::{
@@ -7,7 +8,6 @@ use std::{
     io::{self, Read},
     path::{Path, PathBuf},
     process::{self, Command, Stdio},
-    thread::JoinHandle,
 };
 
 pub struct Bot {
@@ -15,7 +15,7 @@ pub struct Bot {
     pub keybase_path: PathBuf,
     pub home_dir: PathBuf,
     service_process: process::Child,
-    pub listen_threads: Vec<JoinHandle<Result<(), ApiError>>>,
+    pub listen_threads: Vec<JoinHandle<()>>,
 }
 
 impl fmt::Debug for Bot {
@@ -127,7 +127,7 @@ mod tests {
     fn start_bot() {
         let bot = Bot::new(
             "pkt0",
-            option_env!("PAPERKEY").expect("Missing PAPERKEY env"),
+            option_env!("KEYBASE_PAPERKEY").expect("Missing KEYBASE_PAPERKEY env"),
         )
         .unwrap();
         println!("Bot is {:?}", bot);

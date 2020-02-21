@@ -1,12 +1,12 @@
 use crate::bot::Bot;
 use crate::keybase_cmd::{call_chat_api, listen_chat_api};
 use crate::ApiError;
-use futures::channel::mpsc;
+use async_std::sync::Receiver;
+use async_std::task::JoinHandle;
 use keybase_protocol::chat1::api;
 use keybase_protocol::stellar1;
 use serde::{Deserialize, Serialize};
 use serde_json;
-// use std::io::Error as IOError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct APIRPC<T> {
@@ -24,7 +24,7 @@ pub struct ReadConvParams<'a> {
     pub channel: &'a ChannelParams,
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
 pub struct ChannelParams {
     pub name: String,
     pub members_type: Option<String>,
@@ -72,7 +72,7 @@ pub trait Chat {
         channel: &'a ChannelParams,
         msg: &'a str,
     ) -> Result<api::SendRes, ApiError>;
-    fn listen(&mut self) -> Result<mpsc::Receiver<Notification>, ApiError>;
+    fn listen(&mut self) -> Result<Receiver<Result<Notification, ApiError>>, ApiError>;
     fn list(&self) -> Result<ListResult, ApiError>;
     fn read_conv(&self, channel: &ChannelParams) -> Result<api::Thread, ApiError>;
 }
@@ -98,8 +98,8 @@ impl Chat for Bot {
         )
     }
 
-    fn listen(&mut self) -> Result<mpsc::Receiver<Notification>, ApiError> {
-        let (notif_stream, handle) =
+    fn listen(&mut self) -> Result<Receiver<Result<Notification, ApiError>>, ApiError> {
+        let (notif_stream, handle): (Receiver<Result<Notification, ApiError>>, JoinHandle<()>) =
             listen_chat_api::<Notification>(self.keybase_path.as_path(), self.home_dir.as_path())?;
         self.listen_threads.push(handle);
         Ok(notif_stream)
