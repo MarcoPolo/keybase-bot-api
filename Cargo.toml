@@ -11,11 +11,12 @@ keywords = ["keybase", "bot"]
 categories = ["api-bindings"]
 
 [dependencies]
-pest = "2.1.1"
-#  keybase-protocol = { path = "../rusty-keybase-protocol" }
 keybase-protocol = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-futures-preview = "0.3.0-alpha.18"
 rand = "0.7.0"
 hex = "0.3.2"
+
+[dependencies.async-std]
+version = "1.5.0"
+features = ["unstable"]

@@ -1,19 +1,22 @@
-use futures::executor::block_on;
-use futures::prelude::*;
-use futures::stream::StreamExt;
+use async_std::prelude::*;
 use keybase_bot_api::{Bot, Chat};
 
 fn main() {
-  let mut bot = Bot::new(
-    "pkt0",
-    option_env!("PAPERKEY").expect("Missing PAPERKEY env"),
-  )
-  .unwrap();
-  let notifs = bot.listen().unwrap();
-  let fut = notifs.for_each(|notif| {
-    println!("Got notif: {:?}", notif);
-    future::ready(())
-  });
-
-  block_on(fut);
+    async_std::task::block_on( async{
+    let mut bot = Bot::new(
+        "mmou",
+        option_env!("KEYBASE_PAPERKEY").expect("Missing KEYBASE_PAPERKEY env"),
+    )
+    .unwrap();
+    let mut notifs = bot.listen().unwrap();
+    loop {
+        let n = notifs.next().await;
+        if let Some(notif) = n {
+            println!("Got notif: {:?}", notif);
+        }
+        else {
+            println!("Channel sender dropped");
+            return
+        }
+    } })
 }

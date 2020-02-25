@@ -3,21 +3,19 @@ pub mod chat;
 pub mod status;
 pub use bot::Bot;
 pub use chat::Chat;
-use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
 pub use status::Status;
-use std::error::Error;
 use std::{fmt, io};
 
 pub(crate) mod keybase_cmd {
     use super::{ApiError, KBError};
-    use futures::channel::mpsc;
+    use async_std::sync::{channel, Receiver};
+    use async_std::task::{spawn, JoinHandle};
     use serde::{de::DeserializeOwned, Deserialize, Serialize};
     use serde_json;
     use std::io::{self, BufRead, BufReader, Write};
     use std::path::{Path, PathBuf};
     use std::process::{Child, Command, Stdio};
-    use std::thread;
 
     thread_local! {
         pub static KEYBASE: PathBuf = which_keybase();
@@ -74,7 +72,7 @@ pub(crate) mod keybase_cmd {
             .args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .spawn()
+            .spawn() // executes command as child process, returns handle to it
     }
 
     pub fn call_chat_api<T>(
@@ -147,22 +145,24 @@ pub(crate) mod keybase_cmd {
     pub fn listen_chat_api<T>(
         keybase_path: &Path,
         home_dir: &Path,
-    ) -> Result<(mpsc::Receiver<T>, thread::JoinHandle<Result<(), ApiError>>), ApiError>
+    ) -> Result<(Receiver<Result<T, ApiError>>, JoinHandle<()>), ApiError>
     where
         T: DeserializeOwned + Send + 'static,
     {
         let mut child = keybase_exec(keybase_path, home_dir, &["chat", "api-listen"])?;
 
         if let Some(stdout) = child.stdout.take() {
-            let (mut sender, receiver) = mpsc::channel::<T>(128);
-            let handler: thread::JoinHandle<Result<(), ApiError>> = thread::spawn(move || {
-                let mut reader = BufReader::new(stdout);
-                loop {
-                    let mut line = String::new();
-                    let _bytes_written = reader.read_line(&mut line)?;
-                    let res: T = serde_json::from_str(&line)?;
-                    sender.start_send(res)?;
+            let (sender, receiver) = channel::<Result<T, ApiError>>(128);
+            let handler: JoinHandle<()> = spawn(async move {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines() {
+                    let res: Result<T, ApiError> = line
+                        .and_then(|l| Ok(serde_json::from_str(&l)?))
+                        .or_else(|e| Err(e.into()));
+
+                    sender.send(res).await;
                 }
+                drop(sender);
             });
             Ok((receiver, handler))
         } else {
@@ -177,7 +177,6 @@ pub enum ApiError {
     IOErr(io::Error),
     KBErr(KBError),
     UTF8Err(std::string::FromUtf8Error),
-    ChannelErr(mpsc::SendError),
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -189,14 +188,6 @@ pub struct KBError {
 impl fmt::Display for ApiError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
-    }
-}
-
-impl Error for ApiError {}
-
-impl From<mpsc::SendError> for ApiError {
-    fn from(error: mpsc::SendError) -> Self {
-        ApiError::ChannelErr(error)
     }
 }
 
@@ -220,9 +211,7 @@ impl From<std::io::Error> for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use super::chat::*;
     use super::keybase_cmd::*;
-    use super::*;
 
     #[test]
     fn can_find_keybase() {
