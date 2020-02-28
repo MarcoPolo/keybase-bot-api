@@ -11,7 +11,7 @@ keywords = ["keybase", "bot"]
 categories = ["api-bindings"]
 
 [dependencies]
-keybase-protocol = "0.1.0"
+keybase-protocol = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rand = "0.7.0"
