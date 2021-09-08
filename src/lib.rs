@@ -9,7 +9,7 @@ use std::{fmt, io};
 
 pub(crate) mod keybase_cmd {
     use super::{ApiError, KBError};
-    use async_std::sync::{channel, Receiver};
+    use async_std::channel::{unbounded, Receiver};
     use async_std::task::{spawn, JoinHandle};
     use serde::{de::DeserializeOwned, Deserialize, Serialize};
     use serde_json;
@@ -152,7 +152,7 @@ pub(crate) mod keybase_cmd {
         let mut child = keybase_exec(keybase_path, home_dir, &["chat", "api-listen"])?;
 
         if let Some(stdout) = child.stdout.take() {
-            let (sender, receiver) = channel::<Result<T, ApiError>>(128);
+            let (sender, receiver) = unbounded::<Result<T, ApiError>>();
             let handler: JoinHandle<()> = spawn(async move {
                 let reader = BufReader::new(stdout);
                 for line in reader.lines() {
@@ -160,7 +160,9 @@ pub(crate) mod keybase_cmd {
                         .and_then(|l| Ok(serde_json::from_str(&l)?))
                         .or_else(|e| Err(e.into()));
 
-                    sender.send(res).await;
+                    if let Err(e) = sender.send(res).await {
+                        eprintln!("SendError: {}", e);
+                    }
                 }
                 drop(sender);
             });

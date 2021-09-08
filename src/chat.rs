@@ -1,7 +1,7 @@
 use crate::bot::Bot;
 use crate::keybase_cmd::{call_chat_api, listen_chat_api};
 use crate::ApiError;
-use async_std::sync::Receiver;
+use async_std::channel::Receiver;
 use async_std::task::JoinHandle;
 use keybase_protocol::chat1::api;
 use keybase_protocol::stellar1;
@@ -64,7 +64,16 @@ struct SendMessageOptions<'a> {
     channel: &'a ChannelParams,
     message: MessageOptions<'a>,
 }
+
+#[derive(Serialize, Debug)]
+struct UploadAttachmentOptions<'a> {
+    channel: &'a ChannelParams,
+    filename: &'a str,
+    title: &'a str,
+}
+
 type SendTextRPC<'a> = APIRPC<OptionsOnly<SendMessageOptions<'a>>>;
+type UploadAttachmentRPC<'a> = APIRPC<OptionsOnly<UploadAttachmentOptions<'a>>>;
 
 pub trait Chat {
     fn send_msg<'a>(
@@ -72,12 +81,20 @@ pub trait Chat {
         channel: &'a ChannelParams,
         msg: &'a str,
     ) -> Result<api::SendRes, ApiError>;
+    fn upload_attachment<'a>(
+        &self,
+        channel: &'a ChannelParams,
+        filename: &'a str,
+        title: &'a str,
+    ) -> Result<api::SendRes, ApiError>;
     fn listen(&mut self) -> Result<Receiver<Result<Notification, ApiError>>, ApiError>;
     fn list(&self) -> Result<ListResult, ApiError>;
     fn read_conv(&self, channel: &ChannelParams) -> Result<api::Thread, ApiError>;
 }
 
 impl Chat for Bot {
+    // Send a message:
+    // {"method": "send", "params": {"options": {"channel": {"name": "you,them"}, "message": {"body": "is it cold today?"}}}}
     fn send_msg<'a>(
         &self,
         channel: &'a ChannelParams,
@@ -91,6 +108,32 @@ impl Chat for Bot {
             method: "send",
             params: Some(OptionsOnly { options }),
         };
+        call_chat_api::<api::SendRes>(
+            self.keybase_path.as_path(),
+            self.home_dir.as_path(),
+            &serde_json::to_vec(&input)?,
+        )
+    }
+
+    // Upload an attachment:
+    // {"method": "attach", "params": {"options": {"channel": {"name": "you,them"}, "filename": "photo.jpg", "title": "Sunset last night"}}}
+    fn upload_attachment<'a>(
+        &self,
+        channel: &'a ChannelParams,
+        filename: &'a str,
+        title: &'a str,
+    ) -> Result<api::SendRes, ApiError> {
+        let options = UploadAttachmentOptions {
+            channel,
+            filename,
+            title,
+        };
+
+        let input: UploadAttachmentRPC = APIRPC {
+            method: "attach",
+            params: Some(OptionsOnly { options }),
+        };
+
         call_chat_api::<api::SendRes>(
             self.keybase_path.as_path(),
             self.home_dir.as_path(),
