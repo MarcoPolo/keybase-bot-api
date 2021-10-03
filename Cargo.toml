@@ -1,6 +1,6 @@
 [package]
 name = "keybase-bot-api"
-version = "0.3.0"
+version = "0.4.2"
 authors = ["Marco Munizaga <marco@marcopolo.io>"]
 edition = "2018"
 description = "Write bots for Keybase"
@@ -18,5 +18,4 @@ rand = "0.7.0"
 hex = "0.3.2"
 
 [dependencies.async-std]
-version = "1.5.0"
-features = ["unstable"]
+version = "1.10.0"
